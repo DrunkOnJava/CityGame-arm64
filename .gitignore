@@ -130,18 +130,38 @@ AssetsRepository/
 Assets-Simtropolis/
 Assets-Package/
 
-# Agent Development Reports and Implementation Documents
+# Development Documentation and Reports
 AGENT*_COMPLETION_REPORT.md
 AGENT*_IMPLEMENTATION_SUMMARY.md
 AGENT*_WEEK*_DAY*_COMPLETION_REPORT.md
 AGENT*_DAY*_*_COMPLETION_REPORT.md
 AGENT*_*_COMPLETION_REPORT.md
+AGENT_*_MASTER_ORCHESTRATION.md
 ANTHROPIC_MULTI_AGENT_IMPLEMENTATION.md
 *_DEBUGGING_COMPLETE.md
 *_COMPLETION_REPORT.md
+*_SUMMARY.md
 INTEGRATION_PROGRESS_REPORT.md
 MEMORY_INTEGRATION_COMPLETE.md
 SUB_AGENT_*_COMPLETION_REPORT.md
+MULTI_AGENT_SYSTEM_SUMMARY.md
+ORCHESTRATION_SUMMARY.md
+PROJECT_ORGANIZATION_SUMMARY.md
+SHELL_COMMANDS.md
+TODO.md
+demo_sequence.md
+GUIDELINES.md
+CONTRIBUTING.md
+
+# Development Makefiles (keep only Makefile.master)
+Makefile.assets
+Makefile.basic
+Makefile.camera*
+Makefile.city
+Makefile.enhanced
+Makefile.simple*
+Makefile.stubs
+Makefile.window
 
 # Other
 .tags
