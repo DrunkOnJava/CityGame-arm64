@@ -20,9 +20,7 @@ typedef struct {
 typedef enum {
     AGENT_CITIZEN = 0,
     AGENT_VEHICLE = 1,
-    AGENT_TYPE_PEDESTRIAN = 0,  // Alias for AGENT_CITIZEN
-    AGENT_TYPE_VEHICLE = 1,     // Alias for AGENT_VEHICLE
-    AGENT_TYPE_CYCLIST = 2      // Additional type
+    AGENT_EMERGENCY = 2
 } AgentType;
 
 // Behavior weights for different steering behaviors
@@ -55,7 +53,7 @@ typedef struct {
     Vector2 target;             // Current target position
     
     // Path following
-    Vector2* path;              // Current path waypoints
+    const Vector2* path;        // Current path waypoints
     uint32_t path_length;       // Number of waypoints
     uint32_t current_waypoint;  // Current waypoint index
     uint32_t current_path_index; // Current path index (alias)

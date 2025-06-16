@@ -112,21 +112,21 @@ int steering_create_agent(uint32_t entity_id, AgentType type, Vector2 position, 
     
     // Set agent-specific properties
     switch (type) {
-        case AGENT_TYPE_PEDESTRIAN:
+        case AGENT_CITIZEN:
             new_agent->max_speed = 1.5f + (rand() % 100) / 200.0f; // 1.5-2.0 m/s
             new_agent->max_force = 2.0f;
             new_agent->radius = 0.4f;
             new_agent->mass = 70.0f;
             break;
             
-        case AGENT_TYPE_VEHICLE:
+        case AGENT_VEHICLE:
             new_agent->max_speed = 8.0f + (rand() % 400) / 100.0f; // 8-12 m/s
             new_agent->max_force = 4.0f;
             new_agent->radius = 1.5f;
             new_agent->mass = 1500.0f;
             break;
             
-        case AGENT_TYPE_CYCLIST:
+        case AGENT_EMERGENCY:
             new_agent->max_speed = 4.0f + (rand() % 200) / 100.0f; // 4-6 m/s
             new_agent->max_force = 3.0f;
             new_agent->radius = 0.6f;
@@ -639,9 +639,9 @@ void steering_print_stats(void) {
         if (!g_agents[i].active) continue;
         
         switch (g_agents[i].type) {
-            case AGENT_TYPE_PEDESTRIAN: pedestrians++; break;
-            case AGENT_TYPE_VEHICLE: vehicles++; break;
-            case AGENT_TYPE_CYCLIST: cyclists++; break;
+            case AGENT_CITIZEN: pedestrians++; break;
+            case AGENT_VEHICLE: vehicles++; break;
+            case AGENT_EMERGENCY: cyclists++; break;
         }
         
         avg_speed += vector2_length(g_agents[i].velocity);
