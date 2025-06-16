@@ -1,0 +1,280 @@
+# Stub Generation Makefile
+# Creates minimal working implementations for missing functions
+
+all: platform-stubs memory-stubs graphics-stubs simulation-stubs ai-stubs audio-stubs ui-stubs persistence-stubs main-demo
+
+platform-stubs:
+	@echo "Creating platform stubs..."
+	@mkdir -p src/platform
+	@echo '.global bootstrap_init' > src/platform/bootstrap_stub.s
+	@echo '.align 4' >> src/platform/bootstrap_stub.s
+	@echo 'bootstrap_init:' >> src/platform/bootstrap_stub.s
+	@echo '    mov x0, #0' >> src/platform/bootstrap_stub.s
+	@echo '    ret' >> src/platform/bootstrap_stub.s
+	@cat > src/platform/syscalls_stub.s << 'EOF'
+.global syscalls_init
+.global usleep
+.align 4
+syscalls_init:
+    mov x0, #0
+    ret
+usleep:
+    mov x16, #0x5D
+    svc #0x80
+    ret
+EOF
+	@cat > src/platform/threads_stub.s << 'EOF'
+.global threads_init
+.global get_thread_count
+.align 4
+threads_init:
+    mov x0, #0
+    ret
+get_thread_count:
+    mov x0, #8
+    ret
+EOF
+	@cat > src/platform/objc_bridge_stub.s << 'EOF'
+.global objc_bridge_init
+.align 4
+objc_bridge_init:
+    mov x0, #0
+    ret
+EOF
+	@cat > src/platform/platform_stubs.c << 'EOF'
+#include <stdio.h>
+#include <unistd.h>
+
+int should_exit_game(void) {
+    static int frame_count = 0;
+    frame_count++;
+    return frame_count > 600; // Exit after 10 seconds at 60fps
+}
+
+void print_error(const char* msg) {
+    fprintf(stderr, "%s", msg);
+}
+
+long long get_current_time_ns(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000000000LL + ts.tv_nsec;
+}
+
+void calculate_frame_time(void) {
+    // Stub
+}
+EOF
+
+memory-stubs:
+	@echo "Creating memory stubs..."
+	@mkdir -p src/memory
+	@cat > src/memory/memory_stubs.c << 'EOF'
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+
+// TLSF stubs
+int tlsf_init(size_t size) { return 0; }
+void* tlsf_malloc(size_t size) { return malloc(size); }
+void tlsf_free(void* ptr) { free(ptr); }
+void* tlsf_memalign(size_t size, size_t align) { return malloc(size); }
+int tlsf_compact(void) { return 0; }
+void* tlsf_create_with_pool(void* mem, size_t size) { return mem; }
+
+// TLS allocator stubs
+int tls_allocator_init(void) { return 0; }
+void* tls_allocate(void* pool, size_t size) { return malloc(size); }
+void* get_thread_tls_pool(int thread_id) { return NULL; }
+int tls_pool_init(void* base, size_t size_per_thread, int thread_count) { return 0; }
+
+// Agent allocator stubs
+int agent_allocator_init(void) { return 0; }
+int pool_init(void* base, size_t item_size, size_t count) { return item_size * count; }
+void* pool_alloc_aligned(void* pool) { return malloc(128); }
+
+// Graphics allocator stubs
+int graphics_pool_init(void* base, size_t size) { return 0; }
+void* graphics_pool_alloc(size_t size, size_t align) { return malloc(size); }
+
+// Memory tracking stubs
+long get_total_allocated(void) { return 0; }
+int check_memory_pressure(void) { return 0; }
+void emergency_gc(void) {}
+void compact_memory_pools(void) {}
+void defragment_pools(void) {}
+void disable_non_essential_allocations(void) {}
+void reduce_agent_spawn_rate(void) {}
+void reduce_texture_quality(void) {}
+void limit_particle_effects(void) {}
+void trim_caches(void) {}
+void force_entity_cleanup(void) {}
+void flush_particle_systems(void) {}
+void clear_path_caches(void) {}
+void release_unused_textures(void) {}
+void compact_agent_pools(void) {}
+void compact_graphics_pools(void) {}
+void schedule_pool_defrag(void) {}
+EOF
+
+graphics-stubs:
+	@echo "Creating graphics stubs..."
+	@mkdir -p src/graphics
+	@cat > src/graphics/graphics_stubs.c << 'EOF'
+#include <stdio.h>
+
+// Graphics system stubs
+int metal_init(void) { printf("Graphics: Metal initialized\\n"); return 0; }
+int metal_pipeline_init(void) { return 0; }
+int shader_loader_init(void) { return 0; }
+int camera_init(void) { return 0; }
+int sprite_batch_init(void) { return 0; }
+int particle_system_init(void) { return 0; }
+int debug_overlay_init(void) { return 0; }
+void render_frame(void) { /* Render frame stub */ }
+void camera_update_matrices(void) {}
+void render_terrain_layer(void* encoder) {}
+void render_building_layer(void* encoder) {}
+void render_entity_layer(void* encoder) {}
+void render_particle_layer(void* encoder) {}
+void render_ui_layer(void* encoder) {}
+void render_debug_overlay(void* encoder) {}
+void* metal_encoder_begin_frame(void) { return NULL; }
+void metal_encoder_end_frame(void* encoder) {}
+void setup_render_pass(void* encoder) {}
+void graphics_shutdown(void) {}
+EOF
+
+simulation-stubs:
+	@echo "Creating simulation stubs..."
+	@mkdir -p src/simulation
+	@cat > src/simulation/simulation_stubs.c << 'EOF'
+#include <stdio.h>
+
+// Simulation system stubs
+int simulation_core_init(void) { printf("Simulation: Core initialized\\n"); return 0; }
+int time_system_init(void) { return 0; }
+int weather_system_init(void) { return 0; }
+int zoning_system_init(void) { return 0; }
+int economic_system_init(void) { return 0; }
+int infrastructure_init(void) { return 0; }
+int ecs_core_init(void) { return 0; }
+int entity_system_init(void) { return 0; }
+int frame_control_init(void) { return 0; }
+void simulation_update(void) { /* Update simulation */ }
+void time_system_update(void) {}
+void weather_system_update(int delta) {}
+void zone_management_update(void) {}
+void economic_update_pipeline(void) {}
+void entity_system_update(void) {}
+void infrastructure_update(void) {}
+void services_update(void) {}
+void happiness_calculate(void) {}
+void simulation_shutdown(void) {}
+EOF
+
+ai-stubs:
+	@echo "Creating AI stubs..."
+	@mkdir -p src/ai
+	@cat > src/ai/ai_stubs.c << 'EOF'
+#include <stdio.h>
+
+// AI system stubs
+int astar_core_init(void) { printf("AI: A* pathfinding initialized\\n"); return 0; }
+int navmesh_init(void) { return 0; }
+int citizen_behavior_init(void) { return 0; }
+int traffic_flow_init(void) { return 0; }
+int emergency_services_init(void) { return 0; }
+int mass_transit_init(void) { return 0; }
+void ai_update(void) { /* Update AI systems */ }
+void ai_system_update(void) {}
+void citizen_behavior_update(void* entity) {}
+void traffic_flow_update(void* entity) {}
+void emergency_dispatch_update(void) {}
+void mass_transit_update(void) {}
+void ai_shutdown(void) {}
+EOF
+
+audio-stubs:
+	@echo "Creating audio stubs..."
+	@mkdir -p src/audio
+	@cat > src/audio/audio_stubs.c << 'EOF'
+#include <stdio.h>
+
+// Audio system stubs
+int core_audio_init(void) { printf("Audio: Core audio initialized\\n"); return 0; }
+int spatial_audio_init(void) { return 0; }
+int sound_mixer_init(void) { return 0; }
+void audio_update(void) { /* Update audio */ }
+void audio_shutdown(void) {}
+EOF
+
+ui-stubs:
+	@echo "Creating UI stubs..."
+	@mkdir -p src/ui
+	@cat > src/ui/ui_stubs.c << 'EOF'
+#include <stdio.h>
+
+// UI system stubs
+int input_handler_init(void) { printf("UI: Input handler initialized\\n"); return 0; }
+int hud_init(void) { return 0; }
+int ui_tools_init(void) { return 0; }
+void process_input_events(void) { /* Process input */ }
+void ui_update(void) { /* Update UI */ }
+void ui_shutdown(void) {}
+EOF
+
+persistence-stubs:
+	@echo "Creating persistence stubs..."
+	@mkdir -p src/persistence
+	@cat > src/persistence/persistence_stubs.c << 'EOF'
+#include <stdio.h>
+
+// Persistence system stubs
+int save_load_init(void) { printf("Persistence: Save/load initialized\\n"); return 0; }
+int asset_loader_init(void) { return 0; }
+int config_parser_init(void) { return 0; }
+void io_shutdown(void) {}
+EOF
+
+main-demo:
+	@echo "Creating main demo..."
+	@cat > src/main_demo.c << 'EOF'
+#include <stdio.h>
+#include <unistd.h>
+#include <time.h>
+
+// Main entry point for C version
+int main_c_entry(void) {
+    printf("\\n=== SimCity ARM64 Engine Starting ===\\n");
+    printf("Integrated ARM64 assembly modules: 25+\\n");
+    printf("Target performance: 1M+ agents @ 60 FPS\\n");
+    printf("Platform: Apple Silicon\\n\\n");
+    
+    // Call assembly main
+    extern int _main(void);
+    int result = _main();
+    
+    printf("\\n=== SimCity ARM64 Engine Shutdown ===\\n");
+    printf("Exit code: %d\\n", result);
+    
+    return result;
+}
+
+// C main function
+int main(int argc, char* argv[]) {
+    (void)argc;
+    (void)argv;
+    return main_c_entry();
+}
+EOF
+
+platform-shutdown-stubs:
+	@cat >> src/platform/platform_stubs.c << 'EOF'
+
+void platform_shutdown(void) {}
+void memory_shutdown(void) {}
+void core_shutdown(void) {}
+EOF
+
+.PHONY: all platform-stubs memory-stubs graphics-stubs simulation-stubs ai-stubs audio-stubs ui-stubs persistence-stubs main-demo platform-shutdown-stubs

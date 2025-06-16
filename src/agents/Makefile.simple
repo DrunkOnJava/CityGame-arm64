@@ -1,0 +1,68 @@
+# SimCity ARM64 Assembly - Simple Agent System Makefile
+# Builds the simplified agent system for testing
+
+# Compiler and tools
+AS = as
+LD = ld
+
+# Compiler flags for ARM64 assembly
+ASFLAGS = -arch arm64 -g
+LDFLAGS = -arch arm64 -macosx_version_min 12.0
+
+# Directories
+SRC_DIR = .
+OBJ_DIR = ../../build/agents
+BIN_DIR = ../../build/bin
+
+# Source files
+AGENT_SOURCES = agent_system_simple.s agent_test_simple.s
+AGENT_OBJECTS = $(AGENT_SOURCES:%.s=$(OBJ_DIR)/%.o)
+
+# Main targets
+.PHONY: all clean test
+
+all: $(BIN_DIR)/agent_test_simple
+
+# Create directories
+$(OBJ_DIR):
+	@mkdir -p $(OBJ_DIR)
+
+$(BIN_DIR):
+	@mkdir -p $(BIN_DIR)
+
+# Compile agent system sources
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.s | $(OBJ_DIR)
+	$(AS) $(ASFLAGS) -o $@ $<
+
+# Build simple agent test executable
+$(BIN_DIR)/agent_test_simple: $(AGENT_OBJECTS) | $(BIN_DIR)
+	$(LD) $(LDFLAGS) -o $@ $^ -lc -lSystem
+
+# Run tests
+test: $(BIN_DIR)/agent_test_simple
+	@echo "Running simple agent system test..."
+	$(BIN_DIR)/agent_test_simple
+	@echo "Test completed with exit code: $$?"
+
+# Clean build artifacts
+clean:
+	rm -rf $(OBJ_DIR)
+	rm -f $(BIN_DIR)/agent_test_simple
+
+# Show build configuration
+config:
+	@echo "Simple Agent System Build Configuration:"
+	@echo "  AS = $(AS)"
+	@echo "  LD = $(LD)"
+	@echo "  ASFLAGS = $(ASFLAGS)"
+	@echo "  LDFLAGS = $(LDFLAGS)"
+	@echo "  SOURCES = $(AGENT_SOURCES)"
+
+# Help target
+help:
+	@echo "Simple Agent System Build Targets:"
+	@echo "  all              - Build simple agent system test"
+	@echo "  test             - Run agent system test"
+	@echo "  clean            - Clean build artifacts"
+	@echo "  config           - Show build configuration"
+	@echo "  help             - Show this help"

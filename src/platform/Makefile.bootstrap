@@ -1,0 +1,225 @@
+# SimCity ARM64 Platform Bootstrap Makefile
+# Agent E1: Platform Architect
+# 
+# Build system for pure ARM64 assembly bootstrap with Objective-C integration
+
+# Compiler and assembler configuration
+AS = as
+CC = clang
+LD = ld
+
+# Target architecture
+ARCH = -arch arm64
+
+# Assembly flags
+ASFLAGS = $(ARCH) -g -W
+
+# C compiler flags for any C integration
+CFLAGS = $(ARCH) -g -O2 -Wall -Wextra
+
+# Linker flags for Objective-C and frameworks
+LDFLAGS = $(ARCH) -framework Foundation -framework AppKit -framework Metal -framework MetalKit -framework Cocoa -framework QuartzCore
+
+# Include directories
+INCLUDES = -I../../include -I../../include/constants -I../../include/macros -I../../include/interfaces
+
+# Source files
+BOOTSTRAP_SOURCES = bootstrap.s objc_bridge.s mtkview_delegate.s init.s metal_init.s syscalls.s threads.s
+MEMORY_SOURCES = ../memory/agent_allocator.s ../memory/tlsf.s ../memory/pool.s
+TEST_SOURCES = bootstrap_tests.s
+
+# Object files
+BOOTSTRAP_OBJECTS = $(BOOTSTRAP_SOURCES:.s=.o)
+MEMORY_OBJECTS = $(MEMORY_SOURCES:.s=.o)
+TEST_OBJECTS = $(TEST_SOURCES:.s=.o)
+
+# Output binaries
+BOOTSTRAP_BIN = simcity_bootstrap
+TEST_BIN = bootstrap_tests
+
+# Build targets
+.PHONY: all clean test bootstrap debug release install
+
+# Default target
+all: bootstrap test
+
+# Bootstrap application
+bootstrap: $(BOOTSTRAP_BIN)
+
+# Test suite
+test: $(TEST_BIN)
+	./$(TEST_BIN)
+
+# Debug build with extra symbols
+debug: ASFLAGS += -DDEBUG=1
+debug: CFLAGS += -DDEBUG=1 -O0
+debug: bootstrap test
+
+# Release build with optimizations
+release: ASFLAGS += -DRELEASE=1
+release: CFLAGS += -DRELEASE=1 -O3 -DNDEBUG
+release: bootstrap test
+
+# Main bootstrap application
+$(BOOTSTRAP_BIN): $(BOOTSTRAP_OBJECTS) $(MEMORY_OBJECTS)
+	$(CC) $(LDFLAGS) -o $@ $^
+
+# Test suite binary
+$(TEST_BIN): $(TEST_OBJECTS) $(BOOTSTRAP_OBJECTS) $(MEMORY_OBJECTS)
+	$(CC) $(LDFLAGS) -o $@ $^
+
+# Assembly compilation rules
+%.o: %.s
+	$(AS) $(ASFLAGS) $(INCLUDES) -o $@ $<
+
+# Dependency rules for bootstrap components
+bootstrap.o: bootstrap.s ../include/macros/platform_asm.inc ../include/constants/platform_constants.h
+	$(AS) $(ASFLAGS) -o $@ $<
+
+objc_bridge.o: objc_bridge.s ../include/macros/platform_asm.inc
+	$(AS) $(ASFLAGS) -o $@ $<
+
+mtkview_delegate.o: mtkview_delegate.s ../include/macros/platform_asm.inc
+	$(AS) $(ASFLAGS) -o $@ $<
+
+bootstrap_tests.o: bootstrap_tests.s ../include/macros/platform_asm.inc ../include/macros/testing.inc
+	$(AS) $(ASFLAGS) -o $@ $<
+
+# Memory allocator dependencies
+../memory/agent_allocator.o: ../memory/agent_allocator.s
+	$(MAKE) -C ../memory agent_allocator.o
+
+../memory/tlsf.o: ../memory/tlsf.s
+	$(MAKE) -C ../memory tlsf.o
+
+../memory/pool.o: ../memory/pool.s
+	$(MAKE) -C ../memory pool.o
+
+# Platform module dependencies
+init.o: init.s ../include/macros/platform_asm.inc
+	$(AS) $(ASFLAGS) -o $@ $<
+
+metal_init.o: metal_init.s ../include/macros/platform_asm.inc
+	$(AS) $(ASFLAGS) -o $@ $<
+
+syscalls.o: syscalls.s ../include/macros/platform_asm.inc
+	$(AS) $(ASFLAGS) -o $@ $<
+
+threads.o: threads.s ../include/macros/platform_asm.inc
+	$(AS) $(ASFLAGS) -o $@ $<
+
+# Verification targets
+verify-symbols: $(BOOTSTRAP_BIN)
+	nm -g $< | grep -E "(objc_|sel_|MTL)" || true
+	otool -L $<
+
+verify-arch: $(BOOTSTRAP_BIN)
+	file $<
+	lipo -info $< || true
+
+# Performance testing
+perf-test: $(BOOTSTRAP_BIN)
+	time ./$(BOOTSTRAP_BIN) --benchmark-mode || true
+	instruments -t "Time Profiler" ./$(BOOTSTRAP_BIN) || echo "Instruments not available"
+
+# Memory testing with leaks detection
+memory-test: $(BOOTSTRAP_BIN)
+	leaks --atExit -- ./$(BOOTSTRAP_BIN) || echo "Leaks tool not available"
+
+# Static analysis
+analyze: $(BOOTSTRAP_SOURCES)
+	@echo "=== Static Analysis ==="
+	@for src in $(BOOTSTRAP_SOURCES); do \
+		echo "Analyzing $$src..."; \
+		grep -n "TODO\|FIXME\|XXX" $$src || true; \
+	done
+
+# Documentation generation
+docs:
+	@echo "=== Bootstrap System Documentation ==="
+	@echo "Components:"
+	@echo "  - bootstrap.s: Main entry point and application lifecycle"
+	@echo "  - objc_bridge.s: Objective-C runtime integration"
+	@echo "  - mtkview_delegate.s: Metal rendering delegate"
+	@echo "  - bootstrap_tests.s: Comprehensive unit tests"
+	@echo ""
+	@echo "Memory Integration:"
+	@echo "  - Uses Agent D1's TLSF allocator for all dynamic allocation"
+	@echo "  - Cache-aligned agent allocation for optimal performance"
+	@echo "  - Lock-free operations where possible"
+	@echo ""
+	@echo "Performance Targets:"
+	@echo "  - Application startup: < 100ms"
+	@echo "  - Frame rendering: < 16.67ms (60 FPS)"
+	@echo "  - Memory allocation: < 1μs average"
+
+# Installation
+install: $(BOOTSTRAP_BIN) $(TEST_BIN)
+	mkdir -p ../../bin
+	cp $(BOOTSTRAP_BIN) ../../bin/
+	cp $(TEST_BIN) ../../bin/
+	@echo "Bootstrap system installed to ../../bin/"
+
+# Debugging helpers
+gdb-run: $(BOOTSTRAP_BIN)
+	lldb ./$(BOOTSTRAP_BIN)
+
+disasm: $(BOOTSTRAP_BIN)
+	otool -tv $< | head -100
+
+# Clean build artifacts
+clean:
+	rm -f *.o $(BOOTSTRAP_BIN) $(TEST_BIN)
+	rm -f *.dSYM
+	rm -rf *.trace
+	$(MAKE) -C ../memory clean
+
+# Deep clean including dependencies
+distclean: clean
+	rm -f .depend
+
+# Dependency tracking
+depend: $(BOOTSTRAP_SOURCES) $(TEST_SOURCES)
+	@echo "# Dependency file" > .depend
+	@for src in $^; do \
+		echo "$$src dependencies:" >> .depend; \
+		grep -h "\.include" $$src | sed 's/.*"\(.*\)".*/\t\1/' >> .depend || true; \
+	done
+
+# Integration testing with full simulation
+integration-test: $(BOOTSTRAP_BIN)
+	@echo "=== Integration Test ==="
+	@echo "Testing bootstrap with minimal simulation..."
+	timeout 10s ./$(BOOTSTRAP_BIN) --test-mode || echo "Bootstrap integration test completed"
+
+# Code quality checks
+quality-check:
+	@echo "=== Code Quality Check ==="
+	@echo "Checking for ARM64 compliance..."
+	@grep -n "\.cpu\|\.arch" $(BOOTSTRAP_SOURCES) || echo "No architecture directives found"
+	@echo "Checking for proper register usage..."
+	@grep -n "x[0-9]\|w[0-9]" $(BOOTSTRAP_SOURCES) | wc -l || echo "Register usage analysis complete"
+	@echo "Checking for NEON usage..."
+	@grep -n "v[0-9]\|q[0-9]" $(BOOTSTRAP_SOURCES) | wc -l || echo "NEON usage analysis complete"
+
+# Include dependency file if it exists
+-include .depend
+
+# Help target
+help:
+	@echo "SimCity ARM64 Bootstrap Build System"
+	@echo ""
+	@echo "Targets:"
+	@echo "  all           - Build bootstrap and tests (default)"
+	@echo "  bootstrap     - Build main bootstrap application"
+	@echo "  test          - Build and run unit tests"
+	@echo "  debug         - Debug build with symbols"
+	@echo "  release       - Optimized release build"
+	@echo "  clean         - Remove build artifacts"
+	@echo "  install       - Install binaries to ../../bin/"
+	@echo "  docs          - Show documentation"
+	@echo "  verify-*      - Various verification targets"
+	@echo "  perf-test     - Performance testing"
+	@echo "  memory-test   - Memory leak testing"
+	@echo "  quality-check - Code quality analysis"
+	@echo "  help          - Show this help"

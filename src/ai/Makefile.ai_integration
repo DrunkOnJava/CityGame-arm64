@@ -1,0 +1,244 @@
+#==============================================================================
+# SimCity ARM64 Assembly - AI Integration Build System
+# Sub-Agent 5: AI Systems Coordinator
+#==============================================================================
+# Makefile for building the unified AI coordination system
+#==============================================================================
+
+# Compiler and tools
+AS = as
+CC = clang
+LD = ld
+OBJCOPY = objcopy
+
+# Architecture and optimization flags
+ARCH_FLAGS = -arch arm64
+OPT_FLAGS = -O3 -flto
+DEBUG_FLAGS = -g -DDEBUG
+
+# Assembly flags
+ASFLAGS = $(ARCH_FLAGS) -mmacosx-version-min=11.0
+
+# C compiler flags
+CFLAGS = $(ARCH_FLAGS) $(OPT_FLAGS) -std=c11 -Wall -Wextra -Werror \
+         -fno-stack-protector -fomit-frame-pointer \
+         -I../include -I../simulation -I../memory
+
+# Linker flags
+LDFLAGS = $(ARCH_FLAGS) -macosx_version_min 11.0
+
+# Source files
+AI_ASM_SOURCES = \
+    ai_coordination.s \
+    astar_core.s \
+    traffic_flow.s \
+    citizen_behavior.s \
+    emergency_services.s \
+    mass_transit.s
+
+AI_C_SOURCES = \
+    ai_integration.c \
+    ai_integration_test.c \
+    steering_behaviors.c
+
+# Object files
+AI_ASM_OBJECTS = $(AI_ASM_SOURCES:.s=.o)
+AI_C_OBJECTS = $(AI_C_SOURCES:.c=.o)
+AI_OBJECTS = $(AI_ASM_OBJECTS) $(AI_C_OBJECTS)
+
+# Output targets
+AI_LIB = libai_integration.a
+AI_TEST = ai_integration_test
+
+# Default target
+all: $(AI_LIB) $(AI_TEST)
+
+# Build static library
+$(AI_LIB): $(AI_OBJECTS)
+	@echo "Creating AI integration library..."
+	ar rcs $@ $^
+	@echo "AI library created: $@"
+
+# Build test executable
+$(AI_TEST): ai_integration_test.o $(AI_LIB)
+	@echo "Building AI integration test..."
+	$(CC) $(LDFLAGS) -o $@ $< -L. -lai_integration -lm
+	@echo "AI test executable created: $@"
+
+# Assembly compilation rules
+%.o: %.s
+	@echo "Assembling $<..."
+	$(AS) $(ASFLAGS) -o $@ $<
+
+# C compilation rules
+%.o: %.c
+	@echo "Compiling $<..."
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# Specific assembly targets with dependencies
+ai_coordination.o: ai_coordination.s
+	$(AS) $(ASFLAGS) -o $@ $<
+
+astar_core.o: astar_core.s
+	$(AS) $(ASFLAGS) -o $@ $<
+
+traffic_flow.o: traffic_flow.s
+	$(AS) $(ASFLAGS) -o $@ $<
+
+citizen_behavior.o: citizen_behavior.s
+	$(AS) $(ASFLAGS) -o $@ $<
+
+emergency_services.o: emergency_services.s
+	$(AS) $(ASFLAGS) -o $@ $<
+
+mass_transit.o: mass_transit.s
+	$(AS) $(ASFLAGS) -o $@ $<
+
+# C targets with dependencies
+ai_integration.o: ai_integration.c ai_integration.h steering_behaviors.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+ai_integration_test.o: ai_integration_test.c ai_integration.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+steering_behaviors.o: steering_behaviors.c steering_behaviors.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# Debug builds
+debug: CFLAGS += $(DEBUG_FLAGS)
+debug: ASFLAGS += -g
+debug: $(AI_LIB) $(AI_TEST)
+
+# Performance testing
+benchmark: $(AI_TEST)
+	@echo "Running AI integration benchmarks..."
+	./$(AI_TEST)
+	@echo "Benchmark complete."
+
+# Unit tests
+test: $(AI_TEST)
+	@echo "Running AI integration tests..."
+	./$(AI_TEST)
+	@echo "Tests complete."
+
+# Validation targets
+validate: test benchmark
+	@echo "AI integration validation complete."
+
+# Static analysis
+analyze:
+	@echo "Running static analysis on AI integration..."
+	@for file in $(AI_C_SOURCES); do \
+		echo "Analyzing $$file..."; \
+		$(CC) $(CFLAGS) -Weverything -Wno-padded -fsyntax-only $$file; \
+	done
+	@echo "Static analysis complete."
+
+# Assembly listing generation
+listings: $(AI_ASM_SOURCES)
+	@echo "Generating assembly listings..."
+	@for file in $(AI_ASM_SOURCES); do \
+		echo "Listing $$file..."; \
+		$(AS) $(ASFLAGS) -a=$$file.lst $$file; \
+	done
+	@echo "Assembly listings generated."
+
+# Disassembly for debugging
+disasm: $(AI_OBJECTS)
+	@echo "Generating disassembly..."
+	@for obj in $(AI_ASM_OBJECTS); do \
+		echo "Disassembling $$obj..."; \
+		objdump -d $$obj > $$obj.disasm; \
+	done
+	@echo "Disassembly complete."
+
+# Memory layout analysis
+memory_map: $(AI_LIB)
+	@echo "Analyzing memory layout..."
+	nm -n $(AI_LIB) | grep -E "(\.text|\.data|\.bss)" > ai_memory_map.txt
+	objdump -h $(AI_LIB) >> ai_memory_map.txt
+	@echo "Memory map generated: ai_memory_map.txt"
+
+# Performance profiling
+profile: $(AI_TEST)
+	@echo "Running performance profiling..."
+	instruments -t "Time Profiler" ./$(AI_TEST) || true
+	@echo "Profiling complete."
+
+# Code coverage
+coverage: CFLAGS += --coverage
+coverage: $(AI_TEST)
+	@echo "Running coverage analysis..."
+	./$(AI_TEST)
+	gcov $(AI_C_SOURCES)
+	@echo "Coverage analysis complete."
+
+# Documentation generation
+docs:
+	@echo "Generating AI integration documentation..."
+	@mkdir -p docs
+	@echo "# AI Integration System" > docs/README.md
+	@echo "" >> docs/README.md
+	@echo "## Components" >> docs/README.md
+	@echo "- ai_integration.c: Main C interface" >> docs/README.md
+	@echo "- ai_coordination.s: Assembly coordination layer" >> docs/README.md
+	@echo "- AI modules: astar_core.s, traffic_flow.s, citizen_behavior.s, emergency_services.s, mass_transit.s" >> docs/README.md
+	@echo "" >> docs/README.md
+	@echo "## Build Instructions" >> docs/README.md
+	@echo "\`\`\`bash" >> docs/README.md
+	@echo "make all      # Build library and tests" >> docs/README.md
+	@echo "make test     # Run unit tests" >> docs/README.md
+	@echo "make validate # Run full validation" >> docs/README.md
+	@echo "\`\`\`" >> docs/README.md
+	@echo "Documentation generated: docs/README.md"
+
+# Installation
+install: $(AI_LIB)
+	@echo "Installing AI integration library..."
+	@mkdir -p ../../lib
+	@mkdir -p ../../include/ai
+	cp $(AI_LIB) ../../lib/
+	cp ai_integration.h ../../include/ai/
+	@echo "Installation complete."
+
+# Clean targets
+clean:
+	@echo "Cleaning AI integration build files..."
+	rm -f $(AI_OBJECTS) $(AI_LIB) $(AI_TEST)
+	rm -f *.lst *.disasm *.gcov *.gcda *.gcno
+	rm -f ai_memory_map.txt
+	@echo "Clean complete."
+
+clean_all: clean
+	@echo "Cleaning all generated files..."
+	rm -rf docs/
+	@echo "Deep clean complete."
+
+# Help target
+help:
+	@echo "SimCity ARM64 AI Integration Build System"
+	@echo "========================================"
+	@echo ""
+	@echo "Targets:"
+	@echo "  all        - Build AI library and tests (default)"
+	@echo "  debug      - Build with debug symbols"
+	@echo "  test       - Run unit tests"
+	@echo "  benchmark  - Run performance benchmarks"
+	@echo "  validate   - Run full validation suite"
+	@echo "  analyze    - Run static analysis"
+	@echo "  listings   - Generate assembly listings"
+	@echo "  disasm     - Generate disassembly files"
+	@echo "  memory_map - Analyze memory layout"
+	@echo "  profile    - Run performance profiling"
+	@echo "  coverage   - Run code coverage analysis"
+	@echo "  docs       - Generate documentation"
+	@echo "  install    - Install library and headers"
+	@echo "  clean      - Clean build files"
+	@echo "  clean_all  - Clean all generated files"
+	@echo "  help       - Show this help message"
+
+# Phony targets
+.PHONY: all debug test benchmark validate analyze listings disasm memory_map \
+        profile coverage docs install clean clean_all help
+
+# End of Makefile

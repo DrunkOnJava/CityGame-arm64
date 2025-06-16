@@ -1,0 +1,107 @@
+# SimCity ARM64 Assembly - Platform Integration Makefile
+# Sub-Agent 1: Main Application Architect
+#
+# Build system for platform initialization and module stubs
+
+# Build tools
+AS = as
+LD = ld
+CC = clang
+
+# Flags
+ASFLAGS = -arch arm64
+LDFLAGS = -arch arm64 -lSystem -lc
+CFLAGS = -arch arm64 -O2
+
+# Source directories
+SRC_DIR = .
+INCLUDE_DIR = ../../include
+
+# Platform sources
+PLATFORM_SOURCES = \
+	platform_init.s \
+	error_handling.s \
+	main_init_test.s \
+	bootstrap.s \
+	syscalls.s \
+	threads.s \
+	objc_bridge.s
+
+# Module stub sources
+MODULE_SOURCES = \
+	../module_init_stubs.s
+
+# Main application
+MAIN_SOURCE = ../main_unified.s
+
+# Object files
+PLATFORM_OBJECTS = $(PLATFORM_SOURCES:.s=.o)
+MODULE_OBJECTS = $(MODULE_SOURCES:.s=.o)
+MAIN_OBJECT = $(MAIN_SOURCE:.s=.o)
+
+# Output binaries
+MAIN_BINARY = simcity_main
+TEST_BINARY = platform_test
+
+# Default target
+all: $(MAIN_BINARY) $(TEST_BINARY)
+
+# Main application binary
+$(MAIN_BINARY): $(MAIN_OBJECT) $(PLATFORM_OBJECTS) $(MODULE_OBJECTS)
+	$(LD) $(LDFLAGS) -o $@ $^
+
+# Test binary
+$(TEST_BINARY): main_init_test.o platform_init.o error_handling.o $(MODULE_OBJECTS)
+	$(LD) $(LDFLAGS) -o $@ $^
+
+# Object file compilation
+%.o: %.s
+	$(AS) $(ASFLAGS) -o $@ $<
+
+# Include dependency tracking
+%.o: %.s $(INCLUDE_DIR)/macros/platform_asm.inc
+	$(AS) $(ASFLAGS) -I$(INCLUDE_DIR) -o $@ $<
+
+# Test targets
+test: $(TEST_BINARY)
+	./$(TEST_BINARY)
+
+test-platform: platform_init.o error_handling.o
+	$(AS) $(ASFLAGS) -o platform_test_simple.o test_platform_simple.s
+	$(LD) $(LDFLAGS) -o platform_test_simple platform_test_simple.o platform_init.o error_handling.o
+	./platform_test_simple
+
+# Clean targets
+clean:
+	rm -f *.o $(MAIN_BINARY) $(TEST_BINARY) platform_test_simple
+
+clean-all: clean
+	rm -f $(MODULE_OBJECTS) $(MAIN_OBJECT)
+
+# Debug targets
+debug: ASFLAGS += -g
+debug: LDFLAGS += -g
+debug: $(MAIN_BINARY)
+
+# Installation
+install: $(MAIN_BINARY)
+	cp $(MAIN_BINARY) ../../bin/
+
+# Validation
+validate: $(MAIN_BINARY)
+	file $(MAIN_BINARY)
+	otool -h $(MAIN_BINARY)
+
+# Help
+help:
+	@echo "SimCity ARM64 Platform Integration Build System"
+	@echo ""
+	@echo "Targets:"
+	@echo "  all        - Build main application and tests"
+	@echo "  test       - Run integration tests"
+	@echo "  clean      - Clean object files and binaries"
+	@echo "  debug      - Build with debug information"
+	@echo "  validate   - Validate built binaries"
+	@echo "  help       - Show this help"
+
+.PHONY: all test test-platform clean clean-all debug install validate help

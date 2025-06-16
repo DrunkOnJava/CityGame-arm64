@@ -1,0 +1,36 @@
+# SimCity ARM64 - Simple Comprehensive Validation Makefile
+# Agent 3: Runtime Integration - Day 16 Week 4
+
+CC = clang
+CFLAGS = -Wall -Wextra -O3 -g -std=c11 -target arm64-apple-macos11
+LDFLAGS = -lpthread
+
+# Source files
+SOURCES = simple_comprehensive_test.c
+
+# Target executable
+TARGET = simple_comprehensive_test
+
+# Default target
+all: $(TARGET)
+
+# Build the validation executable
+$(TARGET): $(SOURCES)
+	@echo "Building Day 16 simple comprehensive validation..."
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	@echo "✅ Day 16 validation suite built successfully"
+
+# Run comprehensive validation
+validate: $(TARGET)
+	@echo "==================================================================="
+	@echo "Running Day 16 Simple Comprehensive Testing and Security Validation"
+	@echo "==================================================================="
+	./$(TARGET)
+
+# Clean build artifacts
+clean:
+	@echo "Cleaning build artifacts..."
+	rm -f $(TARGET)
+	@echo "✅ Clean complete"
+
+.PHONY: all validate clean

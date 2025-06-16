@@ -1,0 +1,428 @@
+# Agent 0: HMR Orchestrator - Week 4 Day 16 System-Wide Integration Tests
+# Production-grade build system for comprehensive system validation
+# Targets all performance requirements for final deployment
+
+# =============================================================================
+# COMPILER CONFIGURATION
+# =============================================================================
+
+CC = clang
+CXX = clang++
+ASM = as
+
+# Production-optimized flags
+CFLAGS = -O3 -g -Wall -Wextra -Wpedantic -Werror \
+         -arch arm64 -target arm64-apple-macos13.0 \
+         -fno-omit-frame-pointer -fstack-protector-strong \
+         -D__APPLE__ -D__MACH__ -DHMR_PRODUCTION_BUILD
+
+# Performance monitoring flags
+PERF_FLAGS = -DHMR_ENABLE_PERFORMANCE_MONITORING \
+             -DHMR_ENABLE_DETAILED_METRICS \
+             -DHMR_ENABLE_STRESS_TESTING
+
+# Security flags
+SECURITY_FLAGS = -fstack-protector-strong -D_FORTIFY_SOURCE=2 \
+                 -Wformat -Wformat-security
+
+# Threading flags
+THREAD_FLAGS = -pthread -DHMR_ENABLE_THREADING
+
+# Debug flags for development
+DEBUG_FLAGS = -DDEBUG -DHMR_DEBUG_ENABLED -fsanitize=address -fsanitize=undefined
+
+# Combined flags
+ALL_CFLAGS = $(CFLAGS) $(PERF_FLAGS) $(SECURITY_FLAGS) $(THREAD_FLAGS)
+DEBUG_CFLAGS = $(ALL_CFLAGS) $(DEBUG_FLAGS)
+
+# Linker flags
+LDFLAGS = -arch arm64 -framework Foundation -framework Metal -framework MetalKit \
+          -lm -lpthread -Wl,-bind_at_load
+DEBUG_LDFLAGS = $(LDFLAGS) -fsanitize=address -fsanitize=undefined
+
+# =============================================================================
+# SOURCE FILES & DEPENDENCIES
+# =============================================================================
+
+# Core system test sources
+SYSTEM_TEST_SOURCES = system_wide_integration_test_simple.c
+SYSTEM_TEST_HEADERS = system_wide_integration_test.h
+
+# Dependency sources (if available) - commented out for simplified build
+# DEPENDENCY_SOURCES = distributed_error_recovery.c \
+#                     system_performance_orchestrator.c \
+#                     dev_server.c \
+#                     metrics.c \
+#                     visual_feedback.c
+
+DEPENDENCY_HEADERS = distributed_error_recovery.h \
+                    system_performance_orchestrator.h \
+                    dev_server.h \
+                    metrics.h \
+                    visual_feedback.h
+
+# Mock sources for missing dependencies
+MOCK_SOURCES = mocks/system_mocks.c
+MOCK_HEADERS = mocks/system_mocks.h
+
+# All sources - simplified for standalone build
+ALL_SOURCES = $(SYSTEM_TEST_SOURCES) $(MOCK_SOURCES)
+ALL_HEADERS = $(SYSTEM_TEST_HEADERS) $(DEPENDENCY_HEADERS) $(MOCK_HEADERS)
+
+# Object files
+SYSTEM_TEST_OBJECTS = $(SYSTEM_TEST_SOURCES:.c=.o)
+DEPENDENCY_OBJECTS = $(DEPENDENCY_SOURCES:.c=.o)
+MOCK_OBJECTS = $(MOCK_SOURCES:.c=.o)
+
+ALL_OBJECTS = $(SYSTEM_TEST_OBJECTS) $(DEPENDENCY_OBJECTS) $(MOCK_OBJECTS)
+DEBUG_OBJECTS = $(ALL_OBJECTS:.o=_debug.o)
+
+# =============================================================================
+# TARGET DEFINITIONS
+# =============================================================================
+
+# Main targets
+SYSTEM_TEST_TARGET = hmr_system_wide_integration_test
+DEBUG_TARGET = $(SYSTEM_TEST_TARGET)_debug
+STRESS_TEST_TARGET = hmr_stress_test
+SECURITY_TEST_TARGET = hmr_security_test
+
+# Library targets
+SYSTEM_TEST_LIB = libhmr_system_tests.a
+DEBUG_LIB = libhmr_system_tests_debug.a
+
+# Report targets
+HTML_REPORT = reports/system_test_report.html
+JSON_REPORT = reports/system_test_report.json
+CSV_REPORT = reports/system_test_report.csv
+
+# =============================================================================
+# BUILD RULES
+# =============================================================================
+
+.PHONY: all clean test debug stress security compatibility \
+        validate-performance validate-production lint \
+        reports html-report json-report csv-report \
+        help install
+
+# Default target
+all: $(SYSTEM_TEST_TARGET) $(SYSTEM_TEST_LIB)
+
+# Production build
+$(SYSTEM_TEST_TARGET): $(ALL_OBJECTS)
+	@echo "🔗 Linking production system test executable..."
+	@mkdir -p bin
+	$(CC) $(ALL_CFLAGS) -o bin/$@ $^ $(LDFLAGS)
+	@echo "✅ Production build complete: bin/$@"
+
+# Debug build
+debug: $(DEBUG_TARGET)
+
+$(DEBUG_TARGET): $(DEBUG_OBJECTS)
+	@echo "🔗 Linking debug system test executable..."
+	@mkdir -p bin
+	$(CC) $(DEBUG_CFLAGS) -o bin/$@ $^ $(DEBUG_LDFLAGS)
+	@echo "✅ Debug build complete: bin/$@"
+
+# Static library
+$(SYSTEM_TEST_LIB): $(ALL_OBJECTS)
+	@echo "📚 Creating system test library..."
+	@mkdir -p lib
+	ar rcs lib/$@ $^
+	@echo "✅ Library created: lib/$@"
+
+# =============================================================================
+# OBJECT FILE COMPILATION
+# =============================================================================
+
+# Production object files
+%.o: %.c $(ALL_HEADERS)
+	@echo "🔨 Compiling $< (production)..."
+	$(CC) $(ALL_CFLAGS) -c $< -o $@
+
+# Debug object files
+%_debug.o: %.c $(ALL_HEADERS)
+	@echo "🔨 Compiling $< (debug)..."
+	$(CC) $(DEBUG_CFLAGS) -c $< -o $@
+
+# =============================================================================
+# MOCK CREATION
+# =============================================================================
+
+# Create mock files if dependencies are missing
+mocks/system_mocks.c: | mocks
+	@echo "🎭 Creating system mocks..."
+	@printf '// Mock implementations for missing dependencies\n#include "system_mocks.h"\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n// Mock distributed error recovery\nhmr_distributed_error_recovery_t* hmr_create_distributed_error_recovery(void) {\n    return calloc(1, sizeof(hmr_distributed_error_recovery_t));\n}\n\nvoid hmr_destroy_distributed_error_recovery(hmr_distributed_error_recovery_t* recovery) {\n    if (recovery) free(recovery);\n}\n\n// Mock system performance orchestrator\nhmr_system_performance_orchestrator_t* hmr_create_system_performance_orchestrator(void) {\n    return calloc(1, sizeof(hmr_system_performance_orchestrator_t));\n}\n\nvoid hmr_destroy_system_performance_orchestrator(hmr_system_performance_orchestrator_t* orchestrator) {\n    if (orchestrator) free(orchestrator);\n}\n\n// Mock development server\nbool hmr_dev_server_start(uint16_t port) {\n    printf("Mock: Development server started on port %%u\\n", port);\n    return true;\n}\n\nvoid hmr_dev_server_stop(void) {\n    printf("Mock: Development server stopped\\n");\n}\n\n// Mock metrics\nvoid hmr_metrics_init(void) {\n    printf("Mock: Metrics system initialized\\n");\n}\n\nvoid hmr_metrics_cleanup(void) {\n    printf("Mock: Metrics system cleaned up\\n");\n}\n\n// Mock visual feedback\nvoid hmr_visual_feedback_init(void) {\n    printf("Mock: Visual feedback system initialized\\n");\n}\n\nvoid hmr_visual_feedback_cleanup(void) {\n    printf("Mock: Visual feedback system cleaned up\\n");\n}\n' > $@
+	@echo "✅ System mocks created"
+
+mocks/system_mocks.h: | mocks
+	@echo "🎭 Creating system mock headers..."
+	@printf '#ifndef SYSTEM_MOCKS_H\n#define SYSTEM_MOCKS_H\n\n#include <stdint.h>\n#include <stdbool.h>\n\n#ifdef __cplusplus\nextern "C" {\n#endif\n\n// Mock type definitions\ntypedef struct hmr_distributed_error_recovery {\n    int placeholder;\n} hmr_distributed_error_recovery_t;\n\ntypedef struct hmr_system_performance_orchestrator {\n    int placeholder;\n} hmr_system_performance_orchestrator_t;\n\n// Mock function declarations\nhmr_distributed_error_recovery_t* hmr_create_distributed_error_recovery(void);\nvoid hmr_destroy_distributed_error_recovery(hmr_distributed_error_recovery_t* recovery);\n\nhmr_system_performance_orchestrator_t* hmr_create_system_performance_orchestrator(void);\nvoid hmr_destroy_system_performance_orchestrator(hmr_system_performance_orchestrator_t* orchestrator);\n\nbool hmr_dev_server_start(uint16_t port);\nvoid hmr_dev_server_stop(void);\n\nvoid hmr_metrics_init(void);\nvoid hmr_metrics_cleanup(void);\n\nvoid hmr_visual_feedback_init(void);\nvoid hmr_visual_feedback_cleanup(void);\n\n#ifdef __cplusplus\n}\n#endif\n\n#endif // SYSTEM_MOCKS_H\n' > $@
+	@echo "✅ System mock headers created"
+
+mocks:
+	@mkdir -p mocks
+
+# =============================================================================
+# TEST EXECUTION
+# =============================================================================
+
+# Run comprehensive system tests
+test: $(SYSTEM_TEST_TARGET)
+	@echo "🧪 Running comprehensive system-wide integration tests..."
+	@mkdir -p reports
+	./bin/$(SYSTEM_TEST_TARGET)
+	@echo "✅ System tests completed"
+
+# Run debug tests with detailed output
+test-debug: $(DEBUG_TARGET)
+	@echo "🧪 Running debug system tests..."
+	@mkdir -p reports
+	./bin/$(DEBUG_TARGET)
+	@echo "✅ Debug tests completed"
+
+# Run quick validation tests
+test-quick: $(SYSTEM_TEST_TARGET)
+	@echo "⚡ Running quick validation tests..."
+	@mkdir -p reports
+	timeout 60 ./bin/$(SYSTEM_TEST_TARGET) --quick
+	@echo "✅ Quick tests completed"
+
+# Run stress tests
+stress: $(SYSTEM_TEST_TARGET)
+	@echo "🔥 Running stress tests..."
+	@mkdir -p reports
+	./bin/$(SYSTEM_TEST_TARGET) --stress --duration=300
+	@echo "✅ Stress tests completed"
+
+# Run security tests
+security: $(SYSTEM_TEST_TARGET)
+	@echo "🔒 Running security audit tests..."
+	@mkdir -p reports
+	./bin/$(SYSTEM_TEST_TARGET) --security
+	@echo "✅ Security tests completed"
+
+# Run compatibility tests
+compatibility: $(SYSTEM_TEST_TARGET)
+	@echo "🔧 Running compatibility tests..."
+	@mkdir -p reports
+	./bin/$(SYSTEM_TEST_TARGET) --compatibility
+	@echo "✅ Compatibility tests completed"
+
+# =============================================================================
+# PERFORMANCE VALIDATION
+# =============================================================================
+
+# Validate performance targets
+validate-performance: $(SYSTEM_TEST_TARGET)
+	@echo "🎯 Validating performance targets..."
+	@echo "Target: <50ms latency, <1GB memory, <15% CPU, 99.99% uptime"
+	./bin/$(SYSTEM_TEST_TARGET) --validate-performance
+	@echo "✅ Performance validation completed"
+
+# Validate production readiness
+validate-production: $(SYSTEM_TEST_TARGET)
+	@echo "🚀 Validating production readiness..."
+	./bin/$(SYSTEM_TEST_TARGET) --validate-production
+	@echo "✅ Production validation completed"
+
+# Benchmark performance
+benchmark: $(SYSTEM_TEST_TARGET)
+	@echo "📊 Running performance benchmarks..."
+	@mkdir -p reports
+	./bin/$(SYSTEM_TEST_TARGET) --benchmark --output=reports/benchmark_results.json
+	@echo "✅ Benchmarking completed"
+
+# =============================================================================
+# REPORTING
+# =============================================================================
+
+# Generate all reports
+reports: html-report json-report csv-report
+
+# Generate HTML report
+html-report: $(SYSTEM_TEST_TARGET)
+	@echo "📄 Generating HTML report..."
+	@mkdir -p reports
+	./bin/$(SYSTEM_TEST_TARGET) --generate-html-report=reports/system_test_report.html
+	@echo "✅ HTML report generated: reports/system_test_report.html"
+
+# Generate JSON report
+json-report: $(SYSTEM_TEST_TARGET)
+	@echo "📄 Generating JSON report..."
+	@mkdir -p reports
+	./bin/$(SYSTEM_TEST_TARGET) --generate-json-report=reports/system_test_report.json
+	@echo "✅ JSON report generated: reports/system_test_report.json"
+
+# Generate CSV report
+csv-report: $(SYSTEM_TEST_TARGET)
+	@echo "📄 Generating CSV report..."
+	@mkdir -p reports
+	./bin/$(SYSTEM_TEST_TARGET) --generate-csv-report=reports/system_test_report.csv
+	@echo "✅ CSV report generated: reports/system_test_report.csv"
+
+# =============================================================================
+# CODE QUALITY
+# =============================================================================
+
+# Lint code
+lint:
+	@echo "🔍 Running code linting..."
+	@if command -v clang-tidy >/dev/null 2>&1; then \
+		clang-tidy $(SYSTEM_TEST_SOURCES) -- $(ALL_CFLAGS); \
+	else \
+		echo "⚠️  clang-tidy not found, skipping linting"; \
+	fi
+	@echo "✅ Linting completed"
+
+# Format code
+format:
+	@echo "🎨 Formatting code..."
+	@if command -v clang-format >/dev/null 2>&1; then \
+		clang-format -i $(SYSTEM_TEST_SOURCES) $(SYSTEM_TEST_HEADERS); \
+	else \
+		echo "⚠️  clang-format not found, skipping formatting"; \
+	fi
+	@echo "✅ Formatting completed"
+
+# Static analysis
+analyze:
+	@echo "🔬 Running static analysis..."
+	@if command -v scan-build >/dev/null 2>&1; then \
+		scan-build $(CC) $(ALL_CFLAGS) -o /dev/null $(SYSTEM_TEST_SOURCES); \
+	else \
+		echo "⚠️  scan-build not found, skipping analysis"; \
+	fi
+	@echo "✅ Static analysis completed"
+
+# =============================================================================
+# INSTALLATION & DEPLOYMENT
+# =============================================================================
+
+# Install system test tools
+install: $(SYSTEM_TEST_TARGET) $(SYSTEM_TEST_LIB)
+	@echo "📦 Installing system test tools..."
+	@mkdir -p /usr/local/bin
+	@mkdir -p /usr/local/lib
+	@mkdir -p /usr/local/include/hmr
+	@cp bin/$(SYSTEM_TEST_TARGET) /usr/local/bin/
+	@cp lib/$(SYSTEM_TEST_LIB) /usr/local/lib/
+	@cp $(SYSTEM_TEST_HEADERS) /usr/local/include/hmr/
+	@echo "✅ Installation completed"
+
+# Create deployment package
+package: $(SYSTEM_TEST_TARGET) $(SYSTEM_TEST_LIB)
+	@echo "📦 Creating deployment package..."
+	@mkdir -p package/bin
+	@mkdir -p package/lib
+	@mkdir -p package/include
+	@mkdir -p package/docs
+	@cp bin/$(SYSTEM_TEST_TARGET) package/bin/
+	@cp lib/$(SYSTEM_TEST_LIB) package/lib/
+	@cp $(SYSTEM_TEST_HEADERS) package/include/
+	@cp README.md package/docs/ 2>/dev/null || true
+	@tar -czf hmr_system_tests.tar.gz -C package .
+	@echo "✅ Package created: hmr_system_tests.tar.gz"
+
+# =============================================================================
+# CLEANUP
+# =============================================================================
+
+# Clean all generated files
+clean:
+	@echo "🧹 Cleaning build artifacts..."
+	@rm -rf bin/ lib/ obj/ reports/ package/
+	@rm -f $(ALL_OBJECTS) $(DEBUG_OBJECTS)
+	@rm -f *.tar.gz
+	@rm -rf mocks/
+	@echo "✅ Cleanup completed"
+
+# Deep clean including caches
+clean-all: clean
+	@echo "🧹 Deep cleaning..."
+	@rm -rf .cache/
+	@rm -rf .build/
+	@rm -f core core.*
+	@echo "✅ Deep cleanup completed"
+
+# =============================================================================
+# CONTINUOUS INTEGRATION
+# =============================================================================
+
+# CI pipeline
+ci: clean lint analyze test validate-performance reports
+	@echo "🔄 CI pipeline completed successfully"
+
+# Quick CI for pull requests
+ci-quick: clean test-quick validate-performance
+	@echo "⚡ Quick CI pipeline completed successfully"
+
+# Nightly CI with full testing
+ci-nightly: clean test stress security compatibility validate-production reports
+	@echo "🌙 Nightly CI pipeline completed successfully"
+
+# =============================================================================
+# HELP
+# =============================================================================
+
+# Display help information
+help:
+	@echo "🎯 HMR System-Wide Integration Test Build System"
+	@echo "================================================="
+	@echo ""
+	@echo "📋 Main Targets:"
+	@echo "  all                  - Build production system tests"
+	@echo "  debug                - Build debug system tests"
+	@echo "  test                 - Run comprehensive system tests"
+	@echo "  stress               - Run stress tests"
+	@echo "  security             - Run security audit tests"
+	@echo "  compatibility        - Run compatibility tests"
+	@echo ""
+	@echo "🎯 Validation:"
+	@echo "  validate-performance - Validate performance targets"
+	@echo "  validate-production  - Validate production readiness"
+	@echo "  benchmark            - Run performance benchmarks"
+	@echo ""
+	@echo "📊 Reporting:"
+	@echo "  reports              - Generate all reports"
+	@echo "  html-report          - Generate HTML report"
+	@echo "  json-report          - Generate JSON report"
+	@echo "  csv-report           - Generate CSV report"
+	@echo ""
+	@echo "🔧 Code Quality:"
+	@echo "  lint                 - Run code linting"
+	@echo "  format               - Format code"
+	@echo "  analyze              - Run static analysis"
+	@echo ""
+	@echo "📦 Deployment:"
+	@echo "  install              - Install system tools"
+	@echo "  package              - Create deployment package"
+	@echo ""
+	@echo "🧹 Cleanup:"
+	@echo "  clean                - Clean build artifacts"
+	@echo "  clean-all            - Deep clean everything"
+	@echo ""
+	@echo "🔄 CI/CD:"
+	@echo "  ci                   - Full CI pipeline"
+	@echo "  ci-quick             - Quick CI pipeline"
+	@echo "  ci-nightly           - Nightly CI pipeline"
+	@echo ""
+	@echo "🎯 Performance Targets:"
+	@echo "  Latency: <50ms       Memory: <1GB       CPU: <15%"
+	@echo "  Network: <1MB/min    Uptime: 99.99%"
+
+# =============================================================================
+# MAKE CONFIGURATION
+# =============================================================================
+
+# Ensure intermediate files are not deleted
+.PRECIOUS: %.o %_debug.o
+
+# Define phony targets
+.PHONY: all clean test debug stress security compatibility \
+        validate-performance validate-production benchmark \
+        reports html-report json-report csv-report \
+        lint format analyze install package ci ci-quick ci-nightly help
+
+# Default goal
+.DEFAULT_GOAL := all

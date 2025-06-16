@@ -1,0 +1,204 @@
+{
+  "version": "1.0",
+  "description": "SimCity ARM64 Metal shader compilation configuration",
+  "shaders": {
+    "isometric.metal": {
+      "functions": [
+        "isometric_vertex",
+        "isometric_fragment"
+      ],
+      "variants": [
+        "base",
+        "fog",
+        "weather"
+      ],
+      "argument_buffers": [
+        "SceneUniforms",
+        "TileUniforms"
+      ],
+      "optimization_level": "high",
+      "enable_fast_math": true
+    },
+    "advanced_rendering.metal": {
+      "functions": [
+        "tile_vertex_shader",
+        "tile_fragment_shader",
+        "sprite_vertex_shader", 
+        "sprite_fragment_shader",
+        "frustum_cull_compute",
+        "occlusion_cull_compute",
+        "depth_prepass_vertex",
+        "shadow_vertex_shader",
+        "ui_vertex_shader",
+        "ui_fragment_shader"
+      ],
+      "variants": [
+        "base",
+        "normal_map",
+        "specular",
+        "fog",
+        "shadows",
+        "weather",
+        "full_featured"
+      ],
+      "argument_buffers": [
+        "SceneUniforms",
+        "TileUniforms", 
+        "WeatherUniforms",
+        "LightingUniforms",
+        "MaterialUniforms",
+        "CullingUniforms",
+        "PostProcessUniforms"
+      ],
+      "compute_shaders": [
+        "frustum_cull_compute",
+        "occlusion_cull_compute"
+      ],
+      "optimization_level": "maximum",
+      "enable_fast_math": true,
+      "enable_gpu_family_optimization": true
+    }
+  },
+  "optimization": {
+    "target_gpu_family": "Apple8",
+    "metal_version": "2.4",
+    "enable_function_constants": true,
+    "generate_all_variants": false,
+    "commonly_used_variants": [
+      "base",
+      "fog", 
+      "weather"
+    ],
+    "enable_argument_buffers": true,
+    "argument_buffer_optimization": {
+      "enable_pooling": true,
+      "pool_size": 64,
+      "enable_caching": true,
+      "alignment": 256
+    },
+    "enable_gpu_family_optimization": true,
+    "apple_silicon_optimizations": {
+      "enable_tbdr_optimization": true,
+      "enable_simd_optimization": true,
+      "enable_memory_bandwidth_optimization": true,
+      "tile_memory_optimization": true
+    }
+  },
+  "function_constants": {
+    "HAS_NORMAL_MAP": {
+      "type": "bool",
+      "default": false,
+      "variants": [0, 1]
+    },
+    "HAS_SPECULAR_MAP": {
+      "type": "bool", 
+      "default": false,
+      "variants": [0, 1]
+    },
+    "ENABLE_FOG": {
+      "type": "bool",
+      "default": true,
+      "variants": [0, 1]
+    },
+    "ENABLE_SHADOWS": {
+      "type": "bool",
+      "default": false,
+      "variants": [0, 1]
+    },
+    "ENABLE_WEATHER": {
+      "type": "bool",
+      "default": false,
+      "variants": [0, 1]
+    },
+    "LOD_LEVEL": {
+      "type": "int",
+      "default": 0,
+      "variants": [0, 1, 2, 3]
+    },
+    "TEXTURE_ARRAY_SIZE": {
+      "type": "int",
+      "default": 16,
+      "variants": [8, 16, 32, 64]
+    },
+    "MAX_LIGHTS": {
+      "type": "int",
+      "default": 4,
+      "variants": [1, 2, 4, 8]
+    }
+  },
+  "argument_buffer_layouts": {
+    "SceneUniforms": {
+      "size": 256,
+      "alignment": 16,
+      "fields": [
+        {"name": "viewProjectionMatrix", "type": "float4x4", "offset": 0},
+        {"name": "isometricMatrix", "type": "float4x4", "offset": 64},
+        {"name": "cameraPosition", "type": "float3", "offset": 128},
+        {"name": "time", "type": "float", "offset": 140},
+        {"name": "fogColor", "type": "float4", "offset": 144},
+        {"name": "fogRange", "type": "float2", "offset": 160},
+        {"name": "screenSize", "type": "float2", "offset": 168},
+        {"name": "lightDirection", "type": "float4", "offset": 176},
+        {"name": "lightColor", "type": "float4", "offset": 192},
+        {"name": "ambientColor", "type": "float4", "offset": 208}
+      ]
+    },
+    "TileUniforms": {
+      "size": 64,
+      "alignment": 16,
+      "fields": [
+        {"name": "tilePosition", "type": "float2", "offset": 0},
+        {"name": "elevation", "type": "float", "offset": 8},
+        {"name": "tileType", "type": "float", "offset": 12},
+        {"name": "tileColor", "type": "float4", "offset": 16},
+        {"name": "animationPhase", "type": "float", "offset": 32}
+      ]
+    },
+    "WeatherUniforms": {
+      "size": 64,
+      "alignment": 16,
+      "fields": [
+        {"name": "rainIntensity", "type": "float", "offset": 0},
+        {"name": "fogDensity", "type": "float", "offset": 4},
+        {"name": "windSpeed", "type": "float", "offset": 8},
+        {"name": "windDirection", "type": "float", "offset": 12},
+        {"name": "rainColor", "type": "float4", "offset": 16},
+        {"name": "fogTint", "type": "float4", "offset": 32}
+      ]
+    }
+  },
+  "build_targets": {
+    "debug": {
+      "optimization_level": "none",
+      "enable_debug_info": true,
+      "enable_validation": true,
+      "variants": ["base"]
+    },
+    "release": {
+      "optimization_level": "maximum",
+      "enable_debug_info": false,
+      "enable_validation": false,
+      "variants": ["base", "fog", "weather"]
+    },
+    "profile": {
+      "optimization_level": "high",
+      "enable_debug_info": true,
+      "enable_validation": true,
+      "enable_profiling": true,
+      "variants": ["base", "fog", "weather", "full_featured"]
+    }
+  },
+  "performance_targets": {
+    "vertex_shader_cycles": 100,
+    "fragment_shader_cycles": 200,
+    "compute_shader_occupancy": 0.75,
+    "memory_bandwidth_efficiency": 0.80,
+    "tile_memory_usage": 0.60
+  },
+  "validation": {
+    "enable_shader_validation": true,
+    "enable_argument_buffer_validation": true,
+    "enable_performance_warnings": true,
+    "enable_compatibility_checks": true
+  }
+}

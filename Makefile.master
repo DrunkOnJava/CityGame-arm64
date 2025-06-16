@@ -1,0 +1,183 @@
+# SimCity ARM64 Master Build System
+# Builds complete integrated engine from all assembly modules
+
+# Compiler and tools
+AS = as
+CC = clang
+LD = ld
+OBJCOPY = objcopy
+
+# Architecture and optimization flags
+ARCH_FLAGS = -arch arm64
+OPT_FLAGS = -O3 -ffast-math
+DEBUG_FLAGS = -g -DDEBUG
+
+# Assembly flags
+ASFLAGS = $(ARCH_FLAGS) -g
+
+# C flags for stub implementations
+CFLAGS = $(ARCH_FLAGS) $(OPT_FLAGS) $(DEBUG_FLAGS) -Wall -Wextra -std=c11
+CFLAGS += -I./include -I./include/interfaces -I./src
+
+# Linker flags
+LDFLAGS = $(ARCH_FLAGS) -framework Foundation -framework Metal -framework MetalKit
+LDFLAGS += -framework CoreGraphics -framework CoreAudio -framework AVFoundation
+
+# Directories
+SRC_DIR = src
+BUILD_DIR = build
+INCLUDE_DIR = include
+
+# Output executable
+TARGET = simcity_arm64
+
+# Core assembly modules (in dependency order)
+CORE_ASM_SOURCES = \
+	src/platform/bootstrap_stub.s \
+	src/platform/syscalls_stub.s \
+	src/platform/threads_stub.s \
+	src/platform/objc_bridge_stub.s \
+	src/memory/tlsf_allocator.s \
+	src/memory/agent_allocator.s \
+	src/memory/tls_allocator.s \
+	src/memory/memory_integration.s \
+	src/core/event_bus.s \
+	src/simulation/entity_system.s \
+	src/simulation/core.s \
+	src/graphics/metal_encoder.s \
+	src/graphics/sprite_batch.s \
+	src/graphics/camera.s \
+	src/graphics/depth_sorter.s \
+	src/graphics/isometric_transform.s \
+	src/graphics/particles.s \
+	src/graphics/debug_overlay.s \
+	src/ai/astar_core.s \
+	src/ai/citizen_behavior.s \
+	src/ai/traffic_flow.s \
+	src/ai/emergency_services.s \
+	src/ai/mass_transit.s \
+	src/simulation/zoning_neon.s \
+	src/simulation/rci_demand.s \
+	src/simulation/utilities_flood.s \
+	src/audio/spatial_audio.s \
+	src/audio/neon_sound_mixer.s \
+	src/ui/input_handler.s \
+	src/ui/gesture_recognition.s \
+	src/persistence/save_load.s \
+	src/main_unified.s
+
+# C stub implementations
+C_SOURCES = \
+	src/platform/platform_stubs.c \
+	src/memory/memory_stubs.c \
+	src/graphics/graphics_stubs.c \
+	src/simulation/simulation_stubs.c \
+	src/ai/ai_stubs.c \
+	src/audio/audio_stubs.c \
+	src/ui/ui_stubs.c \
+	src/persistence/persistence_stubs.c \
+	src/main_demo.c
+
+# Object files
+ASM_OBJECTS = $(CORE_ASM_SOURCES:%.s=$(BUILD_DIR)/%.o)
+C_OBJECTS = $(C_SOURCES:%.c=$(BUILD_DIR)/%.o)
+ALL_OBJECTS = $(ASM_OBJECTS) $(C_OBJECTS)
+
+# Default target
+all: $(TARGET)
+
+# Create build directories
+$(BUILD_DIR):
+	@mkdir -p $(BUILD_DIR)
+	@mkdir -p $(BUILD_DIR)/src/platform
+	@mkdir -p $(BUILD_DIR)/src/memory
+	@mkdir -p $(BUILD_DIR)/src/core
+	@mkdir -p $(BUILD_DIR)/src/simulation
+	@mkdir -p $(BUILD_DIR)/src/graphics
+	@mkdir -p $(BUILD_DIR)/src/ai
+	@mkdir -p $(BUILD_DIR)/src/audio
+	@mkdir -p $(BUILD_DIR)/src/ui
+	@mkdir -p $(BUILD_DIR)/src/persistence
+
+# Build assembly objects
+$(BUILD_DIR)/%.o: %.s | $(BUILD_DIR)
+	@echo "Assembling $<..."
+	@$(AS) $(ASFLAGS) -o $@ $<
+
+# Build C objects
+$(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
+	@echo "Compiling $<..."
+	@$(CC) $(CFLAGS) -c -o $@ $<
+
+# Link final executable
+$(TARGET): $(ALL_OBJECTS)
+	@echo "Linking $(TARGET)..."
+	@$(CC) $(LDFLAGS) -o $@ $^
+	@echo "Build complete: $(TARGET)"
+
+# Create stub files if they don't exist
+stubs: create-stubs
+
+create-stubs:
+	@echo "Creating stub implementations..."
+	@$(MAKE) -f Makefile.stubs
+
+# Run the executable
+run: $(TARGET)
+	@echo "Running SimCity ARM64..."
+	@./$(TARGET)
+
+# Debug version
+debug: CFLAGS += -DDEBUG_VERBOSE
+debug: $(TARGET)
+
+# Clean build artifacts
+clean:
+	@echo "Cleaning build artifacts..."
+	@rm -rf $(BUILD_DIR)
+	@rm -f $(TARGET)
+
+# Test build without running
+test-build: $(TARGET)
+	@echo "Build test successful!"
+
+# Check for missing files
+check-files:
+	@echo "Checking for required source files..."
+	@for file in $(CORE_ASM_SOURCES) $(C_SOURCES); do \
+		if [ ! -f "$$file" ]; then \
+			echo "Missing: $$file"; \
+		fi; \
+	done
+
+# Install development dependencies
+install-deps:
+	@echo "Installing development dependencies..."
+	@xcode-select --install 2>/dev/null || echo "Xcode tools already installed"
+
+# Show build configuration
+config:
+	@echo "Build Configuration:"
+	@echo "  Target: $(TARGET)"
+	@echo "  Architecture: arm64"
+	@echo "  Compiler: $(CC)"
+	@echo "  Assembler: $(AS)"
+	@echo "  Source files: $(words $(CORE_ASM_SOURCES)) assembly, $(words $(C_SOURCES)) C"
+	@echo "  Build directory: $(BUILD_DIR)"
+
+# Help
+help:
+	@echo "SimCity ARM64 Build System"
+	@echo ""
+	@echo "Targets:"
+	@echo "  all        - Build complete engine (default)"
+	@echo "  stubs      - Create stub implementations"
+	@echo "  run        - Build and run engine"
+	@echo "  debug      - Build debug version"
+	@echo "  clean      - Remove build artifacts"
+	@echo "  test-build - Test compilation without running"
+	@echo "  check-files- Check for missing source files"
+	@echo "  config     - Show build configuration"
+	@echo "  help       - Show this help"
+
+.PHONY: all stubs create-stubs run debug clean test-build check-files install-deps config help

@@ -1,0 +1,63 @@
+# SimCity ARM64 Basic Build System - C stubs only
+CC = clang
+CFLAGS = -arch arm64 -O2 -g -Wall -I./include -I./src
+LDFLAGS = -arch arm64 -framework Foundation -framework Metal -framework MetalKit
+
+# C sources only for maximum compatibility
+C_SOURCES = \
+	src/main_demo.c \
+	src/platform/platform_stubs.c \
+	src/memory/memory_stubs.c \
+	src/graphics/graphics_stubs.c \
+	src/simulation/simulation_stubs.c \
+	src/ai/ai_stubs.c \
+	src/audio/audio_stubs.c \
+	src/ui/ui_stubs.c \
+	src/persistence/persistence_stubs.c
+
+TARGET = simcity_arm64
+BUILD_DIR = build
+
+# Object files
+C_OBJECTS = $(C_SOURCES:%.c=$(BUILD_DIR)/%.o)
+
+.PHONY: all clean run debug
+
+all: $(TARGET)
+
+# Create build directories
+$(BUILD_DIR):
+	@mkdir -p $(BUILD_DIR)/src/{platform,memory,graphics,simulation,ai,audio,ui,persistence}
+
+# Compile C files  
+$(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
+	@echo "Compiling $<"
+	@$(CC) $(CFLAGS) -c -o $@ $<
+
+# Link executable
+$(TARGET): $(C_OBJECTS)
+	@echo "Linking $(TARGET)"
+	@$(CC) $(LDFLAGS) -o $@ $^
+	@echo "Build complete!"
+
+# Run the executable
+run: $(TARGET)
+	@echo "Running SimCity ARM64..."
+	@./$(TARGET)
+
+# Debug build
+debug: CFLAGS += -DDEBUG -O0
+debug: $(TARGET)
+
+# Clean
+clean:
+	@rm -rf $(BUILD_DIR) $(TARGET)
+	@echo "Cleaned build artifacts"
+
+# Help
+help:
+	@echo "SimCity ARM64 Basic Build System"
+	@echo "  all    - Build engine (default)"
+	@echo "  run    - Build and run"
+	@echo "  debug  - Build debug version"
+	@echo "  clean  - Clean build"

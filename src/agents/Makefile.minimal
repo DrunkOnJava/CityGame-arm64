@@ -1,0 +1,38 @@
+# Minimal Agent System Makefile
+
+AS = as
+LD = ld
+
+ASFLAGS = -arch arm64 -g
+LDFLAGS = -arch arm64 -macosx_version_min 12.0
+
+OBJ_DIR = ../../build/agents
+BIN_DIR = ../../build/bin
+
+SOURCES = agent_minimal.s test_minimal.s
+OBJECTS = $(SOURCES:%.s=$(OBJ_DIR)/%.o)
+
+.PHONY: all clean test
+
+all: $(BIN_DIR)/test_minimal
+
+$(OBJ_DIR):
+	@mkdir -p $(OBJ_DIR)
+
+$(BIN_DIR):
+	@mkdir -p $(BIN_DIR)
+
+$(OBJ_DIR)/%.o: %.s | $(OBJ_DIR)
+	$(AS) $(ASFLAGS) -o $@ $<
+
+$(BIN_DIR)/test_minimal: $(OBJECTS) | $(BIN_DIR)
+	$(LD) $(LDFLAGS) -o $@ $^ -lc -lSystem
+
+test: $(BIN_DIR)/test_minimal
+	@echo "Running minimal agent test..."
+	$(BIN_DIR)/test_minimal
+	@echo "Test completed with exit code: $$?"
+
+clean:
+	rm -rf $(OBJ_DIR)
+	rm -f $(BIN_DIR)/test_minimal

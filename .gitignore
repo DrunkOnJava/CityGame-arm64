@@ -1,0 +1,139 @@
+# SimCity ARM64 .gitignore
+
+# Build outputs
+build/
+*.o
+*.a
+*.dylib
+*.so
+*.exe
+*.out
+*.app
+
+# Executables (specific to our project)
+/simcity
+/simcity_demo
+/test_*
+/debug_*
+/*_demo
+/*_test
+/integrated_simcity*
+/interactive_city*
+/enhanced_*
+/visible_*
+/show_*
+/economic_*
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Xcode
+*.xcworkspace
+*.xcuserdata
+*.xcscheme
+DerivedData/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.cproject
+.settings/
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+core
+vgcore.*
+callgrind.out.*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.log
+*.bak
+*.backup
+*.old
+
+# Generated documentation
+docs/generated/
+docs/api/html/
+docs/api/latex/
+doxygen/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+.env
+
+# Archives
+*.zip
+*.tar.gz
+*.tar.bz2
+*.7z
+*.rar
+
+# Screenshots (keep the directory but not the files)
+screenshots/*.png
+screenshots/*.jpg
+!screenshots/.gitkeep
+
+# Metal shader caches
+*.metallib
+*.air
+
+# Performance data
+*.trace
+*.prof
+perf.data
+perf.data.old
+
+# Coverage
+*.gcov
+*.gcda
+*.gcno
+coverage/
+*.info
+
+# Large Asset Directories (use separate asset repository or Git LFS)
+AssetsRepository/
+Assets-Simtropolis/
+Assets-Package/
+
+# Other
+.tags
+tags
+TAGS
+cscope.*
+*.orig
+*.rej

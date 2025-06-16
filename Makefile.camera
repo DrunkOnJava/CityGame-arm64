@@ -1,0 +1,74 @@
+# SimCity ARM64 - Camera Controller Test Makefile
+
+AS = as
+CC = clang
+ASFLAGS = -arch arm64
+CFLAGS = -arch arm64 -O2 -Wall
+LDFLAGS = -framework Carbon -framework CoreFoundation
+
+# Source files
+ASM_SOURCES = src/graphics/camera_controller_simple.s
+C_SOURCES = src/test_camera_demo.c
+
+# Object files
+ASM_OBJECTS = $(ASM_SOURCES:.s=.o)
+C_OBJECTS = $(C_SOURCES:.c=.o)
+OBJECTS = $(ASM_OBJECTS) $(C_OBJECTS)
+
+# Target executable
+TARGET = camera_test
+
+# Default target
+all: $(TARGET)
+	@echo ""
+	@echo "📷 SimCity ARM64 Camera Controller Test Ready!"
+	@echo "Run with: ./$(TARGET)"
+	@echo ""
+	@echo "Controls:"
+	@echo "  🎮 WASD/Arrows: Move camera"
+	@echo "  ⚡ Shift + Move: 2.5x speed boost"
+	@echo "  🔍 Mouse Wheel: Zoom in/out (1.15x exponential)"
+	@echo "  🖱️  Left Click + Drag: Pan view"
+	@echo "  🔄 Right Click + Drag: Rotate camera"
+	@echo "  📐 Screen edges: Auto-pan (15px threshold)"
+	@echo "  🎯 ESC: Exit"
+
+# Link executable
+$(TARGET): $(OBJECTS)
+	@echo "Linking $(TARGET)"
+	@$(CC) $(LDFLAGS) -o $@ $^
+
+# Assemble ARM64 files
+%.o: %.s
+	@echo "Assembling $<"
+	@$(AS) $(ASFLAGS) -o $@ $<
+
+# Compile C files
+%.o: %.c
+	@echo "Compiling $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+# Clean build artifacts
+clean:
+	@echo "Cleaning build artifacts..."
+	@rm -f $(OBJECTS) $(TARGET)
+	@echo "✨ Clean complete!"
+
+# Run the test
+run: $(TARGET)
+	@echo "🚀 Launching Camera Controller Test..."
+	@./$(TARGET)
+
+# Performance test
+perf: $(TARGET)
+	@echo "⚡ Running performance test..."
+	@echo "Measuring camera update performance over 10,000 frames..."
+	@./$(TARGET) --perf
+
+# Debug build
+debug: CFLAGS += -g -DDEBUG
+debug: ASFLAGS += -g
+debug: clean $(TARGET)
+	@echo "🔍 Debug build complete"
+
+.PHONY: all clean run perf debug

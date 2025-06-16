@@ -1,0 +1,375 @@
+# SimCity ARM64 - HMR System Performance Orchestrator Makefile
+# Agent 0: HMR Orchestrator - Day 11
+# Week 3: Advanced Features & Production Optimization
+
+# Compiler and flags
+CC = clang
+CFLAGS = -Wall -Wextra -std=c11 -O2 -g
+CFLAGS += -target arm64-apple-macos11.0
+CFLAGS += -march=armv8.5-a+crypto+sha3
+CFLAGS += -I. -I../.. -I../../include
+CFLAGS += -D_POSIX_C_SOURCE=200809L
+CFLAGS += -DHMR_PERFORMANCE_ORCHESTRATOR_ENABLED
+
+# Linker flags
+LDFLAGS = -lpthread -lm
+LDFLAGS += -framework Foundation
+LDFLAGS += -framework Metal
+LDFLAGS += -framework MetalKit
+
+# Source directories
+SRC_DIR = .
+BUILD_DIR = build_orchestrator
+OBJ_DIR = $(BUILD_DIR)/obj
+BIN_DIR = $(BUILD_DIR)/bin
+TEST_DIR = $(BUILD_DIR)/tests
+
+# Core performance orchestrator sources
+ORCHESTRATOR_SOURCES = \
+    system_performance_orchestrator.c \
+    performance_analytics.c \
+    realtime_performance_dashboard.c
+
+# Test sources
+TEST_SOURCES = \
+    system_performance_coordination_test.c
+
+# Object files
+ORCHESTRATOR_OBJECTS = $(ORCHESTRATOR_SOURCES:%.c=$(OBJ_DIR)/%.o)
+TEST_OBJECTS = $(TEST_SOURCES:%.c=$(OBJ_DIR)/%.o)
+
+# Target binaries
+ORCHESTRATOR_LIB = $(BIN_DIR)/libhmr_performance_orchestrator.a
+COORDINATION_TEST = $(BIN_DIR)/system_performance_coordination_test
+DASHBOARD_DEMO = $(BIN_DIR)/realtime_dashboard_demo
+INTEGRATION_TEST = $(BIN_DIR)/orchestrator_integration_test
+
+# Default target
+.PHONY: all
+all: directories $(ORCHESTRATOR_LIB) $(COORDINATION_TEST) $(DASHBOARD_DEMO)
+
+# Create build directories
+.PHONY: directories
+directories:
+	@mkdir -p $(BUILD_DIR) $(OBJ_DIR) $(BIN_DIR) $(TEST_DIR)
+
+# Build orchestrator library
+$(ORCHESTRATOR_LIB): $(ORCHESTRATOR_OBJECTS)
+	@echo "Creating performance orchestrator library..."
+	ar rcs $@ $^
+	@echo "Performance orchestrator library created: $@"
+
+# Build coordination test
+$(COORDINATION_TEST): $(OBJ_DIR)/system_performance_coordination_test.o $(ORCHESTRATOR_LIB)
+	@echo "Building system performance coordination test..."
+	$(CC) $(CFLAGS) -o $@ $< -L$(BIN_DIR) -lhmr_performance_orchestrator $(LDFLAGS)
+	@echo "Coordination test built: $@"
+
+# Build dashboard demo
+$(DASHBOARD_DEMO): $(OBJ_DIR)/realtime_dashboard_demo.o $(ORCHESTRATOR_LIB)
+	@echo "Building real-time dashboard demo..."
+	$(CC) $(CFLAGS) -o $@ $< -L$(BIN_DIR) -lhmr_performance_orchestrator $(LDFLAGS)
+	@echo "Dashboard demo built: $@"
+
+# Object file compilation
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	@echo "Compiling $<..."
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Create dashboard demo source
+$(OBJ_DIR)/realtime_dashboard_demo.o: realtime_dashboard_demo.c
+	@echo "Compiling dashboard demo..."
+	$(CC) $(CFLAGS) -c $< -o $@
+
+realtime_dashboard_demo.c:
+	@echo "Creating dashboard demo source..."
+	@cat > $@ << 'EOF'
+/*
+ * Real-time Performance Dashboard Demo
+ * Demonstrates live system performance monitoring
+ */
+#include "system_performance_orchestrator.h"
+#include "realtime_performance_dashboard.c"
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
+
+static volatile bool g_running = true;
+
+void signal_handler(int sig) {
+    (void)sig;
+    g_running = false;
+    printf("\nShutting down dashboard...\n");
+}
+
+int main(void) {
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
+    
+    printf("HMR Real-time Performance Dashboard Demo\n");
+    printf("Press Ctrl+C to exit\n\n");
+    
+    // Initialize orchestrator
+    hmr_orchestrator_config_t config = {
+        .collection_interval_ms = 100,
+        .analysis_interval_ms = 200,
+        .alert_check_interval_ms = 150,
+        .cpu_warning_threshold = 70.0,
+        .cpu_critical_threshold = 90.0,
+        .memory_warning_threshold_mb = 1024.0,
+        .memory_critical_threshold_mb = 2048.0,
+        .latency_warning_threshold_ms = 50.0,
+        .latency_critical_threshold_ms = 100.0,
+        .auto_optimization_enabled = true,
+        .predictive_analysis_enabled = true,
+        .cross_agent_coordination_enabled = true,
+        .max_alerts_per_minute = 10,
+        .alert_aggregation_enabled = true
+    };
+    
+    if (hmr_system_performance_orchestrator_init(&config) != 0) {
+        printf("Failed to initialize performance orchestrator\n");
+        return 1;
+    }
+    
+    // Initialize dashboard
+    if (hmr_realtime_dashboard_init() != 0) {
+        printf("Failed to initialize real-time dashboard\n");
+        hmr_system_performance_orchestrator_shutdown();
+        return 1;
+    }
+    
+    // Run until interrupted
+    while (g_running) {
+        sleep(1);
+    }
+    
+    // Cleanup
+    hmr_realtime_dashboard_shutdown();
+    hmr_system_performance_orchestrator_shutdown();
+    
+    return 0;
+}
+EOF
+
+# Run comprehensive tests
+.PHONY: test
+test: $(COORDINATION_TEST)
+	@echo "Running system performance coordination tests..."
+	@echo "=========================================="
+	$(COORDINATION_TEST) 2>&1 | tee $(TEST_DIR)/coordination_test_results.log
+	@echo "Test results saved to: $(TEST_DIR)/coordination_test_results.log"
+
+# Run stress tests
+.PHONY: stress-test
+stress-test: $(COORDINATION_TEST)
+	@echo "Running extended stress tests..."
+	@echo "==============================="
+	STRESS_TEST_DURATION=60 $(COORDINATION_TEST) 2>&1 | tee $(TEST_DIR)/stress_test_results.log
+
+# Run performance benchmarks
+.PHONY: benchmark
+benchmark: $(COORDINATION_TEST)
+	@echo "Running performance benchmarks..."
+	@echo "================================"
+	@echo "Benchmark 1: Latency validation (1000 samples)"
+	time $(COORDINATION_TEST) --benchmark latency 2>&1 | tee $(TEST_DIR)/latency_benchmark.log
+	@echo ""
+	@echo "Benchmark 2: Memory efficiency test"
+	time $(COORDINATION_TEST) --benchmark memory 2>&1 | tee $(TEST_DIR)/memory_benchmark.log
+	@echo ""
+	@echo "Benchmark 3: Scalability test"
+	time $(COORDINATION_TEST) --benchmark scalability 2>&1 | tee $(TEST_DIR)/scalability_benchmark.log
+
+# Run dashboard demo
+.PHONY: demo
+demo: $(DASHBOARD_DEMO)
+	@echo "Starting real-time performance dashboard demo..."
+	@echo "=============================================="
+	@echo "The dashboard will display live performance metrics."
+	@echo "Press Ctrl+C to exit when ready."
+	@echo ""
+	$(DASHBOARD_DEMO)
+
+# Performance validation (CI integration)
+.PHONY: validate-performance
+validate-performance: $(COORDINATION_TEST)
+	@echo "Running performance validation for CI..."
+	@echo "======================================"
+	@echo "Target: <100ms system latency, <2GB memory usage, >30 FPS"
+	$(COORDINATION_TEST) --ci-mode --max-latency 100 --max-memory 2048 --min-fps 30
+	@if [ $$? -eq 0 ]; then \
+		echo "✓ Performance validation PASSED"; \
+	else \
+		echo "✗ Performance validation FAILED"; \
+		exit 1; \
+	fi
+
+# Memory leak detection
+.PHONY: memcheck
+memcheck: $(COORDINATION_TEST)
+	@echo "Running memory leak detection..."
+	@echo "==============================="
+	@if command -v leaks >/dev/null 2>&1; then \
+		leaks --atExit -- $(COORDINATION_TEST) --quick-test; \
+	else \
+		echo "macOS 'leaks' tool not available, running basic memory test"; \
+		$(COORDINATION_TEST) --memory-test; \
+	fi
+
+# Code analysis
+.PHONY: analyze
+analyze:
+	@echo "Running static code analysis..."
+	@echo "============================="
+	@if command -v clang-static-analyzer >/dev/null 2>&1; then \
+		clang-static-analyzer $(CFLAGS) $(ORCHESTRATOR_SOURCES); \
+	else \
+		echo "Running basic analysis with clang..."; \
+		$(CC) $(CFLAGS) -fsyntax-only -Weverything -Wno-padded $(ORCHESTRATOR_SOURCES); \
+	fi
+
+# Performance profiling
+.PHONY: profile
+profile: $(COORDINATION_TEST)
+	@echo "Running performance profiling..."
+	@echo "==============================="
+	@if command -v instruments >/dev/null 2>&1; then \
+		echo "Running with Instruments (Time Profiler)..."; \
+		instruments -t "Time Profiler" -D $(TEST_DIR)/profile_results $(COORDINATION_TEST) --profile-test; \
+	else \
+		echo "Running basic timing analysis..."; \
+		time -p $(COORDINATION_TEST) --timing-test; \
+	fi
+
+# Assembly inspection
+.PHONY: inspect-asm
+inspect-asm:
+	@echo "Generating assembly inspection..."
+	@echo "==============================="
+	$(CC) $(CFLAGS) -S -mllvm -x86-asm-syntax=intel system_performance_orchestrator.c -o $(BUILD_DIR)/orchestrator.s
+	@echo "Assembly output: $(BUILD_DIR)/orchestrator.s"
+
+# Integration with main HMR system
+.PHONY: integration-test
+integration-test: $(ORCHESTRATOR_LIB)
+	@echo "Running HMR system integration test..."
+	@echo "====================================="
+	@cd .. && $(MAKE) -f Makefile.unified test-performance-orchestrator
+	@echo "Integration test completed"
+
+# Clean build artifacts
+.PHONY: clean
+clean:
+	@echo "Cleaning build artifacts..."
+	rm -rf $(BUILD_DIR)
+	rm -f realtime_dashboard_demo.c
+	@echo "Clean completed"
+
+# Install library to system
+.PHONY: install
+install: $(ORCHESTRATOR_LIB)
+	@echo "Installing performance orchestrator library..."
+	@mkdir -p /usr/local/lib/hmr
+	@mkdir -p /usr/local/include/hmr
+	cp $(ORCHESTRATOR_LIB) /usr/local/lib/hmr/
+	cp system_performance_orchestrator.h /usr/local/include/hmr/
+	@echo "Installation completed"
+
+# Package for distribution
+.PHONY: package
+package: all
+	@echo "Creating distribution package..."
+	@mkdir -p $(BUILD_DIR)/package/lib
+	@mkdir -p $(BUILD_DIR)/package/include
+	@mkdir -p $(BUILD_DIR)/package/bin
+	@mkdir -p $(BUILD_DIR)/package/docs
+	cp $(ORCHESTRATOR_LIB) $(BUILD_DIR)/package/lib/
+	cp *.h $(BUILD_DIR)/package/include/
+	cp $(COORDINATION_TEST) $(DASHBOARD_DEMO) $(BUILD_DIR)/package/bin/
+	@echo "# HMR Performance Orchestrator" > $(BUILD_DIR)/package/README.md
+	@echo "## Installation" >> $(BUILD_DIR)/package/README.md
+	@echo "1. Copy lib/* to /usr/local/lib/hmr/" >> $(BUILD_DIR)/package/README.md
+	@echo "2. Copy include/* to /usr/local/include/hmr/" >> $(BUILD_DIR)/package/README.md
+	@echo "3. Run bin/system_performance_coordination_test to validate" >> $(BUILD_DIR)/package/README.md
+	tar -czf $(BUILD_DIR)/hmr_performance_orchestrator.tar.gz -C $(BUILD_DIR)/package .
+	@echo "Distribution package: $(BUILD_DIR)/hmr_performance_orchestrator.tar.gz"
+
+# Documentation generation
+.PHONY: docs
+docs:
+	@echo "Generating documentation..."
+	@mkdir -p $(BUILD_DIR)/docs
+	@echo "# HMR System Performance Orchestrator" > $(BUILD_DIR)/docs/API.md
+	@echo "## Overview" >> $(BUILD_DIR)/docs/API.md
+	@echo "The HMR System Performance Orchestrator coordinates performance monitoring" >> $(BUILD_DIR)/docs/API.md
+	@echo "across all 6 HMR agents with <100ms latency and predictive analytics." >> $(BUILD_DIR)/docs/API.md
+	@echo "" >> $(BUILD_DIR)/docs/API.md
+	@echo "## Key Features" >> $(BUILD_DIR)/docs/API.md
+	@echo "- Real-time performance monitoring with 50ms collection intervals" >> $(BUILD_DIR)/docs/API.md
+	@echo "- Cross-agent bottleneck detection and optimization suggestions" >> $(BUILD_DIR)/docs/API.md
+	@echo "- Predictive analytics for performance regression prevention" >> $(BUILD_DIR)/docs/API.md
+	@echo "- Live dashboard with ASCII charts and real-time alerts" >> $(BUILD_DIR)/docs/API.md
+	@echo "- Comprehensive testing suite with 8 test scenarios" >> $(BUILD_DIR)/docs/API.md
+	@echo "" >> $(BUILD_DIR)/docs/API.md
+	@grep -E "^(int|void|typedef)" *.h >> $(BUILD_DIR)/docs/API.md
+	@echo "Documentation generated: $(BUILD_DIR)/docs/"
+
+# Performance regression baseline
+.PHONY: create-baseline
+create-baseline: $(COORDINATION_TEST)
+	@echo "Creating performance regression baseline..."
+	@echo "========================================"
+	$(COORDINATION_TEST) --create-baseline performance_baseline_$(shell date +%Y%m%d_%H%M%S)
+	@echo "Baseline created and stored"
+
+# Continuous integration target
+.PHONY: ci
+ci: clean all test validate-performance memcheck
+	@echo "Continuous integration pipeline completed successfully"
+
+# Development helpers
+.PHONY: dev-setup
+dev-setup:
+	@echo "Setting up development environment..."
+	@echo "===================================="
+	@mkdir -p $(HOME)/.hmr/performance_logs
+	@mkdir -p $(HOME)/.hmr/baselines
+	@echo "Development environment setup completed"
+
+# Show build information
+.PHONY: info
+info:
+	@echo "HMR Performance Orchestrator Build Information"
+	@echo "=============================================="
+	@echo "Compiler: $(CC)"
+	@echo "Flags: $(CFLAGS)"
+	@echo "Linker: $(LDFLAGS)"
+	@echo "Build Directory: $(BUILD_DIR)"
+	@echo "Target Architecture: ARM64 Apple Silicon"
+	@echo "Performance Targets:"
+	@echo "  - System latency: <100ms"
+	@echo "  - Memory usage: <2GB"
+	@echo "  - Collection interval: 50ms"
+	@echo "  - Analysis interval: 100ms"
+	@echo ""
+	@echo "Available targets:"
+	@echo "  all              - Build all components"
+	@echo "  test             - Run comprehensive tests"
+	@echo "  demo             - Run real-time dashboard demo"
+	@echo "  benchmark        - Run performance benchmarks"
+	@echo "  validate-performance - CI performance validation"
+	@echo "  memcheck         - Memory leak detection"
+	@echo "  profile          - Performance profiling"
+	@echo "  clean            - Clean build artifacts"
+
+# Help target
+.PHONY: help
+help: info
+
+# Dependencies for proper rebuilding
+$(ORCHESTRATOR_OBJECTS): system_performance_orchestrator.h
+$(OBJ_DIR)/performance_analytics.o: performance_analytics.h
+$(OBJ_DIR)/realtime_performance_dashboard.o: system_performance_orchestrator.h
+$(OBJ_DIR)/system_performance_coordination_test.o: system_performance_orchestrator.h

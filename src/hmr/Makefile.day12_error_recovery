@@ -1,0 +1,359 @@
+# SimCity ARM64 - Day 12 Error Recovery System Makefile
+# Agent 0: HMR Orchestrator - Week 3 Days 12-15
+# 
+# Advanced Error Handling & Recovery Build System
+# Targets: distributed error recovery, health monitoring, test suites
+
+CC = clang
+CFLAGS = -Wall -Wextra -O2 -g -std=c11 -fPIC
+CFLAGS += -arch arm64 -mmacosx-version-min=11.0
+CFLAGS += -DHMR_DAY12_ERROR_RECOVERY=1
+CFLAGS += -I. -I../include -I../../include
+
+# Performance optimization flags
+CFLAGS += -ftree-vectorize -ffast-math -funroll-loops
+CFLAGS += -march=armv8.4-a+fp16+dotprod+crypto
+
+# Thread and system libraries
+LDFLAGS = -pthread -lm -framework Foundation -framework CoreFoundation
+
+# Source files for Day 12 error recovery system
+ERROR_RECOVERY_SOURCES = \
+	distributed_error_recovery.c \
+	system_health_monitoring.c
+
+# Test source files
+TEST_SOURCES = \
+	distributed_error_recovery_test.c \
+	system_health_monitoring_test.c
+
+# Object files
+ERROR_RECOVERY_OBJECTS = $(ERROR_RECOVERY_SOURCES:.c=.o)
+TEST_OBJECTS = $(TEST_SOURCES:.c=.o)
+
+# Library targets
+LIBES = libhmr_error_recovery.a libhmr_health_monitoring.a
+
+# Test executables
+TEST_EXECUTABLES = \
+	error_recovery_test \
+	health_monitoring_test \
+	integrated_recovery_test \
+	performance_benchmark_test
+
+# Default target
+all: $(LIBES) $(TEST_EXECUTABLES)
+
+# ============================================================================
+# Library Building
+# ============================================================================
+
+libhmr_error_recovery.a: distributed_error_recovery.o
+	@echo "Building error recovery library..."
+	ar rcs $@ $^
+	@echo "Error recovery library built successfully"
+
+libhmr_health_monitoring.a: system_health_monitoring.o
+	ar rcs $@ $^
+	@echo "Health monitoring library built successfully"
+
+# Individual object files
+distributed_error_recovery.o: distributed_error_recovery.c distributed_error_recovery.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+system_health_monitoring.o: system_health_monitoring.c system_health_monitoring.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# ============================================================================
+# Test Executables
+# ============================================================================
+
+error_recovery_test: distributed_error_recovery_test.o libhmr_error_recovery.a
+	@echo "Building error recovery test..."
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+	@echo "Error recovery test built successfully"
+
+health_monitoring_test: system_health_monitoring_test.o libhmr_health_monitoring.a
+	@echo "Building health monitoring test..."
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+	@echo "Health monitoring test built successfully"
+
+integrated_recovery_test: integrated_recovery_test.o libhmr_error_recovery.a libhmr_health_monitoring.a
+	@echo "Building integrated recovery test..."
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+
+performance_benchmark_test: performance_benchmark_test.o libhmr_error_recovery.a libhmr_health_monitoring.a
+	@echo "Building performance benchmark test..."
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+
+# Test object files
+distributed_error_recovery_test.o: distributed_error_recovery_test.c distributed_error_recovery.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+system_health_monitoring_test.o: system_health_monitoring_test.c system_health_monitoring.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+integrated_recovery_test.o: integrated_recovery_test.c distributed_error_recovery.h system_health_monitoring.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+performance_benchmark_test.o: performance_benchmark_test.c distributed_error_recovery.h system_health_monitoring.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# ============================================================================
+# Test Execution Targets
+# ============================================================================
+
+# Run all tests
+test: $(TEST_EXECUTABLES)
+	@echo "┌──────────────────────────────────────────────────────────────────────────┐"
+	@echo "│                  Day 12 Error Recovery System Test Suite                │"
+	@echo "│               Advanced Error Handling & Recovery Testing                │"
+	@echo "└──────────────────────────────────────────────────────────────────────────┘"
+	@echo ""
+	@echo "Running Error Recovery Test Suite..."
+	./error_recovery_test
+	@echo ""
+	@echo "Running Health Monitoring Test Suite..."
+	./health_monitoring_test
+	@echo ""
+	@echo "Running Integrated Recovery Test..."
+	./integrated_recovery_test
+	@echo ""
+	@echo "All Day 12 tests completed successfully!"
+
+# Run specific test categories
+test-error-recovery: error_recovery_test
+	@echo "Running Error Recovery Tests..."
+	./error_recovery_test
+
+test-health-monitoring: health_monitoring_test
+	@echo "Running Health Monitoring Tests..."
+	./health_monitoring_test
+
+test-integration: integrated_recovery_test
+	@echo "Running Integration Tests..."
+	./integrated_recovery_test
+
+test-performance: performance_benchmark_test
+	@echo "Running Performance Benchmarks..."
+	./performance_benchmark_test
+
+# ============================================================================
+# Performance and Validation Targets
+# ============================================================================
+
+# Validate recovery time performance (<50ms target)
+validate-recovery-time: error_recovery_test
+	@echo "Validating recovery time performance (<50ms target)..."
+	./error_recovery_test --validate-recovery-time --target-latency=50000
+	@echo "Recovery time validation completed"
+
+# Stress test with high error volume
+stress-test: $(TEST_EXECUTABLES)
+	@echo "Running stress test with high error volume..."
+	./error_recovery_test --stress-test --duration=60 --error-rate=1000
+	@echo "Stress test completed"
+
+# Memory leak detection
+memcheck: $(TEST_EXECUTABLES)
+	@echo "Running memory leak detection..."
+	leaks --atExit -- ./error_recovery_test --quick-test
+	leaks --atExit -- ./health_monitoring_test --quick-test
+	@echo "Memory leak detection completed"
+
+# Performance profiling with Instruments
+profile: error_recovery_test
+	@echo "Starting performance profiling..."
+	instruments -t "Time Profiler" -D profile_results.trace ./error_recovery_test --benchmark
+	@echo "Profiling completed. Results in profile_results.trace"
+
+# ============================================================================
+# Benchmark and Reporting Targets
+# ============================================================================
+
+# Generate comprehensive performance report
+benchmark-report: performance_benchmark_test
+	@echo "Generating comprehensive performance report..."
+	./performance_benchmark_test --generate-report --output=day12_performance_report.json
+	@echo "Performance report generated: day12_performance_report.json"
+
+# Test ML prediction accuracy
+test-ml-accuracy: error_recovery_test
+	@echo "Testing ML prediction accuracy..."
+	./error_recovery_test --test-ml-accuracy --training-samples=1000 --validation-samples=200
+	@echo "ML accuracy test completed"
+
+# Validate system recovery scenarios
+test-recovery-scenarios: $(TEST_EXECUTABLES)
+	@echo "Testing various recovery scenarios..."
+	@./error_recovery_test --scenario=memory-exhaustion
+	@./error_recovery_test --scenario=network-failure
+	@./error_recovery_test --scenario=disk-full
+	@./error_recovery_test --scenario=cpu-overload
+	@echo "Recovery scenario testing completed"
+
+# ============================================================================
+# Development and Debugging Targets
+# ============================================================================
+
+# Debug build with extensive logging
+debug: CFLAGS += -DDEBUG -DHMR_VERBOSE_LOGGING -O0 -ggdb3
+debug: clean $(LIBES) $(TEST_EXECUTABLES)
+	@echo "Debug build completed with extensive logging enabled"
+
+# Build with sanitizers
+sanitize: CFLAGS += -fsanitize=address -fsanitize=thread -fno-omit-frame-pointer
+sanitize: LDFLAGS += -fsanitize=address -fsanitize=thread
+sanitize: clean $(LIBES) $(TEST_EXECUTABLES)
+	@echo "Sanitizer build completed"
+
+# Static analysis
+analyze:
+	@echo "Running static analysis..."
+	clang-static-analyzer $(CFLAGS) $(ERROR_RECOVERY_SOURCES)
+	@echo "Static analysis completed"
+
+# Code coverage analysis
+coverage: CFLAGS += -fprofile-instr-generate -fcoverage-mapping
+coverage: LDFLAGS += -fprofile-instr-generate
+coverage: clean $(LIBES) $(TEST_EXECUTABLES)
+	@echo "Running tests with coverage analysis..."
+	LLVM_PROFILE_FILE="coverage.profraw" ./error_recovery_test
+	xcrun llvm-profdata merge -sparse coverage.profraw -o coverage.profdata
+	xcrun llvm-cov show ./error_recovery_test -instr-profile=coverage.profdata
+	@echo "Coverage analysis completed"
+
+# ============================================================================
+# Documentation and Reporting
+# ============================================================================
+
+# Generate API documentation
+docs:
+	@echo "Generating API documentation..."
+	doxygen Doxyfile 2>/dev/null || echo "Doxygen not available, skipping documentation"
+
+# Create test report
+test-report: test
+	@echo "Generating test report..."
+	@echo "Day 12 Error Recovery System Test Report" > test_report.md
+	@echo "=======================================" >> test_report.md
+	@echo "" >> test_report.md
+	@echo "Date: $$(date)" >> test_report.md
+	@echo "System: $$(uname -a)" >> test_report.md
+	@echo "" >> test_report.md
+	@./error_recovery_test --generate-report >> test_report.md
+	@./health_monitoring_test --generate-report >> test_report.md
+	@echo "Test report generated: test_report.md"
+
+# ============================================================================
+# Installation and Distribution
+# ============================================================================
+
+# Install libraries and headers
+install: $(LIBES)
+	@echo "Installing error recovery libraries..."
+	mkdir -p ../../lib
+	cp $(LIBES) ../../lib/
+	mkdir -p ../../include/hmr
+	cp distributed_error_recovery.h ../../include/hmr/
+	cp system_health_monitoring.h ../../include/hmr/
+	@echo "Installation completed"
+
+# Create distribution package
+package: $(LIBES) $(TEST_EXECUTABLES)
+	@echo "Creating distribution package..."
+	mkdir -p hmr_error_recovery_day12
+	cp $(LIBES) hmr_error_recovery_day12/
+	cp distributed_error_recovery.h system_health_monitoring.h hmr_error_recovery_day12/
+	cp $(TEST_EXECUTABLES) hmr_error_recovery_day12/
+	cp README_DAY12.md hmr_error_recovery_day12/ 2>/dev/null || true
+	tar -czf hmr_error_recovery_day12.tar.gz hmr_error_recovery_day12/
+	@echo "Distribution package created: hmr_error_recovery_day12.tar.gz"
+
+# ============================================================================
+# Cleanup Targets
+# ============================================================================
+
+# Clean build artifacts
+clean:
+	@echo "Cleaning build artifacts..."
+	rm -f *.o *.a $(TEST_EXECUTABLES)
+	rm -rf *.dSYM
+	rm -f *.profraw *.profdata
+	rm -f profile_results.trace
+	rm -rf hmr_error_recovery_day12/
+	@echo "Clean completed"
+
+# Deep clean including logs and reports
+distclean: clean
+	rm -f *.log *.json *.trace *.md
+	rm -f coverage.*
+	rm -rf docs/
+
+# ============================================================================
+# Development Workflow Targets
+# ============================================================================
+
+# Quick development cycle: build and test
+dev: clean debug test-error-recovery
+	@echo "Development cycle completed successfully"
+
+# Continuous integration target
+ci: clean all test validate-recovery-time stress-test
+	@echo "CI pipeline completed successfully"
+
+# Pre-commit validation
+pre-commit: analyze test-error-recovery test-health-monitoring
+	@echo "Pre-commit validation passed"
+
+# ============================================================================
+# Help and Information
+# ============================================================================
+
+# Display help information
+help:
+	@echo "Day 12 Error Recovery System Makefile"
+	@echo "====================================="
+	@echo ""
+	@echo "Build Targets:"
+	@echo "  all                    - Build all libraries and tests"
+	@echo "  libhmr_error_recovery.a - Build error recovery library"
+	@echo "  libhmr_health_monitoring.a - Build health monitoring library"
+	@echo ""
+	@echo "Test Targets:"
+	@echo "  test                   - Run all test suites"
+	@echo "  test-error-recovery    - Run error recovery tests"
+	@echo "  test-health-monitoring - Run health monitoring tests"
+	@echo "  test-integration       - Run integration tests"
+	@echo "  test-performance       - Run performance benchmarks"
+	@echo ""
+	@echo "Validation Targets:"
+	@echo "  validate-recovery-time - Validate <50ms recovery time"
+	@echo "  stress-test           - High-volume error stress test"
+	@echo "  test-ml-accuracy      - Test ML prediction accuracy"
+	@echo "  test-recovery-scenarios - Test various failure scenarios"
+	@echo ""
+	@echo "Development Targets:"
+	@echo "  debug                 - Debug build with logging"
+	@echo "  sanitize              - Build with sanitizers"
+	@echo "  analyze               - Static code analysis"
+	@echo "  coverage              - Code coverage analysis"
+	@echo ""
+	@echo "Utility Targets:"
+	@echo "  clean                 - Clean build artifacts"
+	@echo "  install               - Install libraries and headers"
+	@echo "  package               - Create distribution package"
+	@echo "  docs                  - Generate documentation"
+	@echo "  help                  - Show this help message"
+
+# Version information
+version:
+	@echo "HMR Error Recovery System - Day 12"
+	@echo "Version: 1.0.0"
+	@echo "Build Date: $$(date)"
+	@echo "Target: ARM64 macOS"
+
+.PHONY: all test clean install package help version dev ci pre-commit
+.PHONY: test-error-recovery test-health-monitoring test-integration test-performance
+.PHONY: validate-recovery-time stress-test memcheck profile benchmark-report
+.PHONY: debug sanitize analyze coverage docs test-report distclean

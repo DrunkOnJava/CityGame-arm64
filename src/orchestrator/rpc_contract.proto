@@ -1,0 +1,194 @@
+// Protocol Buffer definitions for DevActor orchestration
+// This defines the RPC contract between Orchestrator and Workers
+
+syntax = "proto3";
+
+package simcity.orchestration;
+
+// Core message types for DevActor communication
+service OrchestratorService {
+  // Worker registration and capabilities
+  rpc RegisterWorker(WorkerRegistration) returns (RegistrationResponse);
+  
+  // Task assignment and coordination
+  rpc AssignTask(TaskAssignment) returns (TaskResponse);
+  
+  // Health monitoring
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+  
+  // Resource coordination
+  rpc RequestResource(ResourceRequest) returns (ResourceResponse);
+  
+  // Integration coordination
+  rpc RequestIntegration(IntegrationRequest) returns (IntegrationResponse);
+}
+
+// Worker capabilities and registration
+message WorkerRegistration {
+  string worker_id = 1;                    // e.g. "dev_actor_core_engine"
+  string display_name = 2;                 // e.g. "Core Engine Developer"
+  repeated string capabilities = 3;         // e.g. ["arm64-asm", "simd-opt", "memory-mgmt"]
+  string version = 4;                      // API version compatibility
+  WorkerSpec spec = 5;                     // Resource requirements
+}
+
+message WorkerSpec {
+  uint32 max_concurrent_tasks = 1;         // Parallel task capacity
+  uint32 memory_requirement_mb = 2;        // Memory needs
+  repeated string dependencies = 3;         // Other workers this depends on
+  uint32 priority_level = 4;               // 1=highest, 10=lowest
+}
+
+message RegistrationResponse {
+  bool accepted = 1;
+  string worker_token = 2;                 // Authentication token
+  string reason = 3;                       // If rejected, why
+  OrchestratorConfig config = 4;           // Orchestrator settings
+}
+
+// Task assignment and execution
+message TaskAssignment {
+  string task_id = 1;                      // Unique task identifier
+  string worker_id = 2;                    // Target worker
+  TaskType type = 3;                       // Type of work
+  string description = 4;                  // Human-readable task
+  bytes payload = 5;                       // Task-specific data
+  uint32 priority = 6;                     // 1=urgent, 10=background
+  uint64 deadline_ms = 7;                  // Unix timestamp deadline
+  repeated string dependencies = 8;         // Task IDs this depends on
+}
+
+enum TaskType {
+  TASK_UNKNOWN = 0;
+  TASK_IMPLEMENTATION = 1;                 // Code implementation
+  TASK_OPTIMIZATION = 2;                   // Performance optimization
+  TASK_TESTING = 3;                        // Quality assurance
+  TASK_INTEGRATION = 4;                    // Cross-system integration
+  TASK_DOCUMENTATION = 5;                  // Documentation updates
+}
+
+message TaskResponse {
+  string task_id = 1;
+  TaskStatus status = 2;
+  string message = 3;                      // Status details
+  bytes result_payload = 4;                // Task output
+  repeated string artifacts = 5;           // Generated files/outputs
+  ExecutionMetrics metrics = 6;            // Performance data
+}
+
+enum TaskStatus {
+  STATUS_UNKNOWN = 0;
+  STATUS_ACCEPTED = 1;
+  STATUS_IN_PROGRESS = 2;
+  STATUS_COMPLETED = 3;
+  STATUS_FAILED = 4;
+  STATUS_BLOCKED = 5;
+  STATUS_CANCELLED = 6;
+}
+
+// Health monitoring and circuit breaker
+message HeartbeatRequest {
+  string worker_id = 1;
+  uint64 timestamp_ms = 2;
+  WorkerHealth health = 3;
+  repeated string active_tasks = 4;
+}
+
+message WorkerHealth {
+  float cpu_usage_percent = 1;             // 0-100
+  uint64 memory_usage_mb = 2;
+  uint32 active_task_count = 3;
+  uint32 completed_task_count = 4;
+  uint32 failed_task_count = 5;
+  float average_task_time_ms = 6;
+  string status_message = 7;               // Free-form status
+}
+
+message HeartbeatResponse {
+  bool acknowledged = 1;
+  repeated string pending_tasks = 2;       // Tasks queued for this worker
+  OrchestratorDirective directive = 3;     // Instructions from orchestrator
+}
+
+enum OrchestratorDirective {
+  DIRECTIVE_CONTINUE = 0;                  // Keep working
+  DIRECTIVE_THROTTLE = 1;                  // Reduce load
+  DIRECTIVE_PAUSE = 2;                     // Stop taking new tasks
+  DIRECTIVE_RESTART = 3;                   // Restart worker process
+  DIRECTIVE_SHUTDOWN = 4;                  // Graceful shutdown
+}
+
+// Resource coordination (files, memory, compute)
+message ResourceRequest {
+  string worker_id = 1;
+  string request_id = 2;
+  ResourceType type = 3;
+  string resource_identifier = 4;          // File path, memory pool, etc.
+  AccessMode access_mode = 5;
+  uint32 duration_seconds = 6;             // How long needed
+}
+
+enum ResourceType {
+  RESOURCE_FILE = 0;
+  RESOURCE_MEMORY_POOL = 1;
+  RESOURCE_COMPUTE_THREAD = 2;
+  RESOURCE_GPU_CONTEXT = 3;
+  RESOURCE_NETWORK_PORT = 4;
+}
+
+enum AccessMode {
+  ACCESS_READ = 0;
+  ACCESS_WRITE = 1;
+  ACCESS_EXCLUSIVE = 2;
+}
+
+message ResourceResponse {
+  bool granted = 1;
+  string lease_token = 2;                  // Token to use resource
+  uint64 expires_at_ms = 3;                // When lease expires
+  string reason = 4;                       // If denied, why
+}
+
+// Integration coordination
+message IntegrationRequest {
+  string initiator_worker_id = 1;
+  repeated string participant_worker_ids = 2;
+  string integration_type = 3;             // "build", "test", "merge"
+  string description = 4;
+  bytes configuration = 5;                 // Integration-specific config
+}
+
+message IntegrationResponse {
+  bool approved = 1;
+  string integration_id = 2;
+  string reason = 3;
+  repeated IntegrationStep steps = 4;      // Execution plan
+}
+
+message IntegrationStep {
+  string step_id = 1;
+  string worker_id = 2;                    // Who executes this step
+  string action = 3;                       // What to do
+  repeated string dependencies = 4;        // Previous steps needed
+  uint32 timeout_seconds = 5;
+}
+
+// Configuration and coordination
+message OrchestratorConfig {
+  uint32 heartbeat_interval_ms = 1;        // How often to ping
+  uint32 task_timeout_ms = 2;              // Default task timeout
+  uint32 max_concurrent_tasks = 3;         // System-wide limit
+  bool debug_mode = 4;                     // Enable verbose logging
+  repeated string blocked_workers = 5;     // Temporarily disabled workers
+}
+
+// Performance and execution metrics
+message ExecutionMetrics {
+  uint64 start_time_ms = 1;
+  uint64 end_time_ms = 2;
+  uint64 cpu_time_ms = 3;
+  uint64 memory_peak_mb = 4;
+  uint32 cache_hits = 5;
+  uint32 cache_misses = 6;
+  repeated string performance_notes = 7;
+}

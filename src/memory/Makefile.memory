@@ -1,0 +1,126 @@
+# SimCity ARM64 Memory System Makefile
+# Agent 2: Memory Integration Engineer
+
+# Compiler and assembler settings
+AS = as
+CC = clang
+LD = ld
+ARCH = -arch arm64
+CFLAGS = $(ARCH) -O3 -Wall -Wextra -I../../include
+ASFLAGS = $(ARCH) -g
+LDFLAGS = $(ARCH)
+
+# Source files
+ASM_SOURCES = \
+	memory_integration.s \
+	tlsf_allocator.s \
+	tlsf.s \
+	agent_allocator.s \
+	tls_allocator.s \
+	allocator_bridge.s
+
+C_SOURCES = \
+	memory_integration_test.c
+
+# Object files
+ASM_OBJECTS = $(ASM_SOURCES:.s=.o)
+C_OBJECTS = $(C_SOURCES:.c=.o)
+ALL_OBJECTS = $(ASM_OBJECTS) $(C_OBJECTS)
+
+# Targets
+.PHONY: all clean test memory-test
+
+all: libmemory.a memory_test
+
+# Static library with all memory components
+libmemory.a: $(ASM_OBJECTS)
+	ar rcs $@ $^
+	ranlib $@
+
+# Memory integration test
+memory_test: $(ALL_OBJECTS)
+	$(CC) $(LDFLAGS) -o $@ $^
+
+# Assembly files
+%.o: %.s
+	$(AS) $(ASFLAGS) -o $@ $<
+
+# C files
+%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# Test target
+test: memory_test
+	@echo "Running memory integration test..."
+	./memory_test
+
+# Performance test
+perf-test: memory_test
+	@echo "Running memory performance test..."
+	time ./memory_test
+
+# Clean
+clean:
+	rm -f *.o libmemory.a memory_test
+
+# Debug build
+debug: CFLAGS += -g -DDEBUG_MEMORY
+debug: ASFLAGS += -g
+debug: all
+
+# Individual component builds
+tlsf: tlsf_allocator.o tlsf.o
+	ar rcs libtlsf.a $^
+
+agent: agent_allocator.o
+	ar rcs libagent.a $^
+
+tls: tls_allocator.o
+	ar rcs libtls.a $^
+
+integration: memory_integration.o
+	ar rcs libintegration.a $^
+
+# Memory layout verification
+verify-layout:
+	@echo "Memory Layout Verification:"
+	@echo "TLSF Heap:    0x000000000 - 0x040000000 (1GB)"
+	@echo "Agent Pool:   0x040000000 - 0x080000000 (1GB)"
+	@echo "Graphics:     0x080000000 - 0x0C0000000 (1GB)"
+	@echo "TLS/Misc:     0x0C0000000 - 0x100000000 (1GB)"
+	@echo "Total:        4GB"
+
+# Dependency tracking
+memory_integration.o: memory_integration.s
+tlsf_allocator.o: tlsf_allocator.s
+tlsf.o: tlsf.s
+agent_allocator.o: agent_allocator.s
+tls_allocator.o: tls_allocator.s
+allocator_bridge.o: allocator_bridge.s
+memory_integration_test.o: memory_integration_test.c
+
+# Documentation
+doc:
+	@echo "Memory System Documentation:"
+	@echo "============================="
+	@echo ""
+	@echo "Components:"
+	@echo "- TLSF Allocator: O(1) general-purpose allocator"
+	@echo "- Agent Allocator: Pool-based allocator for game entities"
+	@echo "- TLS Allocator: Thread-local storage allocator"
+	@echo "- Integration Layer: Unified memory management"
+	@echo "- Bridge Layer: C-compatible interfaces"
+	@echo ""
+	@echo "Memory Layout (4GB total):"
+	@echo "- TLSF Heap: 1GB for general allocations"
+	@echo "- Agent Pool: 1GB for 1M+ game agents"
+	@echo "- Graphics: 1GB for textures, buffers, etc."
+	@echo "- TLS/Misc: 1GB for thread-local and system overhead"
+	@echo ""
+	@echo "Usage:"
+	@echo "- configure_memory_pools(): Initialize all memory systems"
+	@echo "- module_memory_init(): Allocate memory for specific modules"
+	@echo "- simcity_malloc/free(): Unified allocation interface"
+	@echo "- memory_pressure_monitor(): Check memory usage levels"
+
+.SECONDARY: $(ALL_OBJECTS)

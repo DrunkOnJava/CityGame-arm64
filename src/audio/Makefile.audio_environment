@@ -1,0 +1,262 @@
+# Makefile.audio_environment - Build configuration for Audio and Environment Systems
+# Agent 8: Audio and Environment Systems Developer
+# Builds the integrated 3D audio, weather, environment effects, and time systems
+
+# Compiler settings
+CC = clang
+ASM = clang
+OBJC = clang
+TARGET = arm64-apple-macos11.0
+CFLAGS = -O2 -target $(TARGET) -Wall -Wextra
+ASMFLAGS = -target $(TARGET)
+OBJCFLAGS = -O2 -target $(TARGET) -framework Foundation -framework Metal -framework MetalKit -framework AVFoundation -framework AudioToolbox -framework AppKit
+
+# Directories
+SRC_DIR = ../..
+AUDIO_DIR = $(SRC_DIR)/src/audio
+SIMULATION_DIR = $(SRC_DIR)/src/simulation
+DEMO_DIR = $(SRC_DIR)/demos
+BUILD_DIR = $(SRC_DIR)/build
+INCLUDE_DIR = $(SRC_DIR)/include
+
+# Source files
+AUDIO_SOURCES = \
+	$(AUDIO_DIR)/core_audio.s \
+	$(AUDIO_DIR)/positional.s \
+	$(AUDIO_DIR)/environmental_audio.s
+
+SIMULATION_SOURCES = \
+	$(SIMULATION_DIR)/weather_system.s \
+	$(SIMULATION_DIR)/environment_effects.s \
+	$(SIMULATION_DIR)/time_system.s
+
+DEMO_SOURCES = \
+	$(DEMO_DIR)/audio_environment_demo.m
+
+HEADER_FILES = \
+	$(AUDIO_DIR)/audio_environment_integration.h
+
+# Object files
+AUDIO_OBJECTS = $(AUDIO_SOURCES:.s=.o)
+SIMULATION_OBJECTS = $(SIMULATION_SOURCES:.s=.o)
+DEMO_OBJECTS = $(DEMO_SOURCES:.m=.o)
+
+# Targets
+.PHONY: all clean audio simulation demo test help
+
+all: audio simulation demo
+
+# Audio system components
+audio: $(BUILD_DIR)/libaudio_system.a
+
+$(BUILD_DIR)/libaudio_system.a: $(AUDIO_OBJECTS) | $(BUILD_DIR)
+	ar rcs $@ $(AUDIO_OBJECTS)
+	@echo "Built audio system library: $@"
+
+# Simulation system components  
+simulation: $(BUILD_DIR)/libsimulation_system.a
+
+$(BUILD_DIR)/libsimulation_system.a: $(SIMULATION_OBJECTS) | $(BUILD_DIR)
+	ar rcs $@ $(SIMULATION_OBJECTS)
+	@echo "Built simulation system library: $@"
+
+# Integration demo
+demo: $(BUILD_DIR)/audio_environment_demo
+
+$(BUILD_DIR)/audio_environment_demo: $(DEMO_SOURCES) $(BUILD_DIR)/libaudio_system.a $(BUILD_DIR)/libsimulation_system.a | $(BUILD_DIR)
+	$(OBJC) $(OBJCFLAGS) -I$(SRC_DIR)/src \
+		$(DEMO_SOURCES) \
+		$(BUILD_DIR)/libaudio_system.a \
+		$(BUILD_DIR)/libsimulation_system.a \
+		-o $@
+	@echo "Built integration demo: $@"
+
+# Individual component tests
+test: test_audio test_weather test_environment test_integration
+
+test_audio: $(BUILD_DIR)/test_audio
+$(BUILD_DIR)/test_audio: $(AUDIO_DIR)/test_audio.s $(BUILD_DIR)/libaudio_system.a | $(BUILD_DIR)
+	$(ASM) $(ASMFLAGS) $(AUDIO_DIR)/test_audio.s $(BUILD_DIR)/libaudio_system.a -o $@
+	@echo "Built audio test: $@"
+
+test_weather: $(BUILD_DIR)/test_weather  
+$(BUILD_DIR)/test_weather: $(SIMULATION_DIR)/test_weather.s $(BUILD_DIR)/libsimulation_system.a | $(BUILD_DIR)
+	$(ASM) $(ASMFLAGS) $(SIMULATION_DIR)/test_weather.s $(BUILD_DIR)/libsimulation_system.a -o $@
+	@echo "Built weather test: $@"
+
+test_environment: $(BUILD_DIR)/test_environment
+$(BUILD_DIR)/test_environment: $(SIMULATION_DIR)/test_environment.s $(BUILD_DIR)/libsimulation_system.a | $(BUILD_DIR)
+	$(ASM) $(ASMFLAGS) $(SIMULATION_DIR)/test_environment.s $(BUILD_DIR)/libsimulation_system.a -o $@
+	@echo "Built environment test: $@"
+
+test_integration: $(BUILD_DIR)/test_integration
+$(BUILD_DIR)/test_integration: $(AUDIO_DIR)/test_integration.s $(BUILD_DIR)/libaudio_system.a $(BUILD_DIR)/libsimulation_system.a | $(BUILD_DIR)
+	$(ASM) $(ASMFLAGS) $(AUDIO_DIR)/test_integration.s \
+		$(BUILD_DIR)/libaudio_system.a \
+		$(BUILD_DIR)/libsimulation_system.a \
+		-o $@
+	@echo "Built integration test: $@"
+
+# Compilation rules
+%.o: %.s
+	$(ASM) $(ASMFLAGS) -c $< -o $@
+
+%.o: %.m
+	$(OBJC) $(OBJCFLAGS) -I$(SRC_DIR)/src -c $< -o $@
+
+# Build directory
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
+
+# Performance benchmarks
+benchmark: $(BUILD_DIR)/audio_environment_demo
+	@echo "Running audio system benchmark..."
+	@time $(BUILD_DIR)/audio_environment_demo --benchmark --duration=10
+	@echo "Running weather system benchmark..."
+	@time $(BUILD_DIR)/test_weather --benchmark --iterations=1000
+	@echo "Running environment system benchmark..." 
+	@time $(BUILD_DIR)/test_environment --benchmark --frames=3600
+
+# Memory analysis
+memory_check: $(BUILD_DIR)/audio_environment_demo
+	leaks --atExit -- $(BUILD_DIR)/audio_environment_demo --test-mode
+
+# Code quality checks
+lint:
+	@echo "Checking assembly code style..."
+	@find $(AUDIO_DIR) $(SIMULATION_DIR) -name "*.s" -exec grep -l "TODO\|FIXME\|XXX" {} \; || true
+	@echo "Checking for unused functions..."
+	@nm $(BUILD_DIR)/libaudio_system.a | grep -E "^[0-9a-f]+ T " || true
+
+# Documentation generation
+docs:
+	@echo "Generating documentation for audio and environment systems..."
+	@mkdir -p $(BUILD_DIR)/docs
+	@echo "# Audio and Environment Systems" > $(BUILD_DIR)/docs/README.md
+	@echo "" >> $(BUILD_DIR)/docs/README.md
+	@echo "## Components" >> $(BUILD_DIR)/docs/README.md
+	@echo "" >> $(BUILD_DIR)/docs/README.md
+	@echo "### Audio System" >> $(BUILD_DIR)/docs/README.md
+	@grep -h "^// " $(AUDIO_SOURCES) | head -20 >> $(BUILD_DIR)/docs/README.md
+	@echo "" >> $(BUILD_DIR)/docs/README.md
+	@echo "### Weather System" >> $(BUILD_DIR)/docs/README.md
+	@grep -h "^// " $(SIMULATION_DIR)/weather_system.s | head -10 >> $(BUILD_DIR)/docs/README.md
+	@echo "" >> $(BUILD_DIR)/docs/README.md
+	@echo "### Environment Effects" >> $(BUILD_DIR)/docs/README.md
+	@grep -h "^// " $(SIMULATION_DIR)/environment_effects.s | head -10 >> $(BUILD_DIR)/docs/README.md
+
+# Installation
+install: all
+	@echo "Installing audio and environment systems..."
+	@mkdir -p /usr/local/lib/simcity
+	@mkdir -p /usr/local/include/simcity
+	@cp $(BUILD_DIR)/libaudio_system.a /usr/local/lib/simcity/
+	@cp $(BUILD_DIR)/libsimulation_system.a /usr/local/lib/simcity/
+	@cp $(HEADER_FILES) /usr/local/include/simcity/
+	@echo "Installation complete"
+
+# Clean build artifacts
+clean:
+	rm -f $(AUDIO_OBJECTS) $(SIMULATION_OBJECTS) $(DEMO_OBJECTS)
+	rm -f $(BUILD_DIR)/libaudio_system.a
+	rm -f $(BUILD_DIR)/libsimulation_system.a
+	rm -f $(BUILD_DIR)/audio_environment_demo
+	rm -f $(BUILD_DIR)/test_*
+	@echo "Cleaned build artifacts"
+
+# Help target
+help:
+	@echo "SimCity ARM64 - Audio and Environment Systems Build"
+	@echo ""
+	@echo "Available targets:"
+	@echo "  all           - Build all components (audio, simulation, demo)"
+	@echo "  audio         - Build audio system library"
+	@echo "  simulation    - Build simulation system library"  
+	@echo "  demo          - Build integration demo application"
+	@echo "  test          - Build all test programs"
+	@echo "  test_audio    - Build audio system tests"
+	@echo "  test_weather  - Build weather system tests"
+	@echo "  test_environment - Build environment system tests"
+	@echo "  test_integration - Build integration tests"
+	@echo "  benchmark     - Run performance benchmarks"
+	@echo "  memory_check  - Check for memory leaks"
+	@echo "  lint          - Run code quality checks"
+	@echo "  docs          - Generate documentation"
+	@echo "  install       - Install libraries and headers"
+	@echo "  clean         - Remove build artifacts"
+	@echo "  help          - Show this help message"
+	@echo ""
+	@echo "Example usage:"
+	@echo "  make all                    # Build everything"
+	@echo "  make demo && ./build/audio_environment_demo  # Run demo"
+	@echo "  make test && make benchmark # Test and benchmark"
+	@echo ""
+	@echo "System requirements:"
+	@echo "  - macOS 11.0+ (ARM64)"
+	@echo "  - Xcode command line tools"
+	@echo "  - Metal support for graphics"
+	@echo "  - AVFoundation for audio"
+
+# Debug configurations
+debug: CFLAGS += -g -DDEBUG
+debug: ASMFLAGS += -g
+debug: OBJCFLAGS += -g -DDEBUG
+debug: all
+
+# Release optimized build
+release: CFLAGS += -O3 -DNDEBUG -flto
+release: ASMFLAGS += -O3
+release: OBJCFLAGS += -O3 -DNDEBUG -flto
+release: all
+
+# Profile-guided optimization
+profile: CFLAGS += -fprofile-generate
+profile: OBJCFLAGS += -fprofile-generate
+profile: all
+	@echo "Running profiling workload..."
+	$(BUILD_DIR)/audio_environment_demo --profile-run
+	@echo "Rebuilding with profile data..."
+	$(MAKE) clean
+	$(MAKE) CFLAGS="$(CFLAGS) -fprofile-use" OBJCFLAGS="$(OBJCFLAGS) -fprofile-use" all
+
+# Static analysis
+analyze:
+	clang --analyze -Xanalyzer -analyzer-output=text $(DEMO_SOURCES) -I$(SRC_DIR)/src
+
+# Code coverage
+coverage: CFLAGS += --coverage
+coverage: OBJCFLAGS += --coverage
+coverage: all test
+	@echo "Running tests for coverage analysis..."
+	$(BUILD_DIR)/test_audio
+	$(BUILD_DIR)/test_weather  
+	$(BUILD_DIR)/test_environment
+	$(BUILD_DIR)/test_integration
+	@echo "Generating coverage report..."
+	lcov --capture --directory . --output-file coverage.info
+	genhtml coverage.info --output-directory coverage_html
+
+# Continuous integration target
+ci: clean all test benchmark lint
+	@echo "Continuous integration build complete"
+
+# Development tools
+dev_setup:
+	@echo "Setting up development environment..."
+	@which clang || (echo "Install Xcode command line tools" && exit 1)
+	@which git || (echo "Install Git" && exit 1)
+	@echo "Development environment ready"
+
+# File watching for development
+watch:
+	@echo "Watching for file changes... (requires fswatch)"
+	fswatch -o $(AUDIO_DIR) $(SIMULATION_DIR) | xargs -n1 -I{} make all
+
+# Integration with main SimCity build
+simcity_integration: all
+	@echo "Integrating with main SimCity build system..."
+	@cp $(BUILD_DIR)/libaudio_system.a $(SRC_DIR)/build/
+	@cp $(BUILD_DIR)/libsimulation_system.a $(SRC_DIR)/build/
+	@echo "Audio and environment systems integrated"
+
+.PHONY: debug release profile analyze coverage ci dev_setup watch simcity_integration

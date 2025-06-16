@@ -1,0 +1,102 @@
+# Makefile for Agent E3 System Call Wrappers
+# Platform Team - System Call Testing
+
+CC = clang
+AS = as
+AR = ar
+TARGET_ARCH = -arch arm64
+
+# Directories
+SRC_DIR = .
+INCLUDE_DIR = ../../include/interfaces
+BUILD_DIR = build
+
+# Source files
+ASM_SOURCES = syscalls.s
+C_SOURCES = syscall_demo.c
+OBJECTS = $(ASM_SOURCES:.s=.o) $(C_SOURCES:.c=.o)
+
+# Targets
+DEMO_TARGET = syscall_demo
+LIB_TARGET = libsyscalls.a
+
+# Compiler flags
+CFLAGS = $(TARGET_ARCH) -O2 -Wall -Wextra -I$(INCLUDE_DIR)
+ASFLAGS = $(TARGET_ARCH)
+
+# Default target
+all: $(DEMO_TARGET) $(LIB_TARGET)
+
+# Create build directory
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
+
+# Build object files
+%.o: %.s
+	$(AS) $(ASFLAGS) -o $@ $<
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# Build demo executable
+$(DEMO_TARGET): syscalls.o syscall_demo.o
+	$(CC) $(TARGET_ARCH) -o $@ $^
+
+# Build static library
+$(LIB_TARGET): syscalls.o
+	$(AR) rcs $@ $^
+
+# Test the syscall wrappers
+test: $(DEMO_TARGET)
+	@echo "Running Agent E3 System Call Wrapper Tests..."
+	./$(DEMO_TARGET)
+
+# Clean build artifacts
+clean:
+	rm -f *.o $(DEMO_TARGET) $(LIB_TARGET)
+	rm -rf $(BUILD_DIR)
+
+# Install the library and headers
+install: $(LIB_TARGET)
+	@echo "Installing system call library..."
+	cp $(LIB_TARGET) ../../lib/
+	cp $(INCLUDE_DIR)/platform.h ../../include/
+
+# Build for debugging
+debug: CFLAGS += -g -DDEBUG
+debug: ASFLAGS += -g
+debug: $(DEMO_TARGET)
+
+# Build for release
+release: CFLAGS += -O3 -DNDEBUG
+release: $(DEMO_TARGET) $(LIB_TARGET)
+
+# Assemble only (for syntax checking)
+check-syntax: syscalls.s
+	$(AS) $(ASFLAGS) -o /dev/null syscalls.s
+	@echo "Assembly syntax check passed"
+
+# Show assembly info
+info:
+	@echo "Agent E3 System Call Wrappers"
+	@echo "============================="
+	@echo "Assembly source: $(ASM_SOURCES)"
+	@echo "C demo source: $(C_SOURCES)"
+	@echo "Target architecture: ARM64"
+	@echo "Includes comprehensive macOS system call wrappers"
+	@echo ""
+	@echo "Available targets:"
+	@echo "  all       - Build demo and library"
+	@echo "  test      - Run system call tests"
+	@echo "  clean     - Clean build artifacts"
+	@echo "  debug     - Build with debug symbols"
+	@echo "  release   - Build optimized version"
+	@echo "  install   - Install library"
+	@echo "  check-syntax - Verify assembly syntax"
+
+# Phony targets
+.PHONY: all clean test install debug release check-syntax info
+
+# Dependencies
+syscall_demo.o: syscall_demo.c $(INCLUDE_DIR)/platform.h
+syscalls.o: syscalls.s

@@ -1,0 +1,267 @@
+# SimCity ARM64 Threading System Makefile
+# Agent E4: Platform Team - Threading & Synchronization
+#
+# Build system for ARM64 assembly threading implementation
+#
+
+# Compiler and assembler settings
+AS = as
+CC = clang
+LD = clang
+ARCH = -arch arm64
+
+# Assembly flags
+ASFLAGS = $(ARCH) -g
+
+# C compiler flags
+CFLAGS = $(ARCH) -O2 -g -Wall -Wextra -std=c99
+CFLAGS += -I../../include
+CFLAGS += -I../../include/constants
+CFLAGS += -I../../include/macros
+
+# Linker flags
+LDFLAGS = $(ARCH) -framework Foundation
+
+# Source files
+ASM_SOURCES = threads.s thread_tests.s
+C_SOURCES = threading_demo.c
+OBJECTS = $(ASM_SOURCES:.s=.o) $(C_SOURCES:.c=.o)
+
+# Output targets
+THREADING_LIB = libthreading.a
+DEMO_BINARY = threading_demo
+TEST_BINARY = thread_tests
+
+# Default target
+all: $(THREADING_LIB) $(DEMO_BINARY) $(TEST_BINARY)
+
+# Build threading library
+$(THREADING_LIB): threads.o
+	ar rcs $@ $^
+	@echo "✓ Threading library built: $(THREADING_LIB)"
+
+# Build demo program
+$(DEMO_BINARY): threading_demo.o $(THREADING_LIB)
+	$(LD) $(LDFLAGS) -o $@ threading_demo.o -L. -lthreading
+	@echo "✓ Demo program built: $(DEMO_BINARY)"
+
+# Build test program
+$(TEST_BINARY): thread_tests.o $(THREADING_LIB)
+	$(LD) $(LDFLAGS) -o $@ thread_tests.o -L. -lthreading
+	@echo "✓ Test program built: $(TEST_BINARY)"
+
+# Assembly compilation rules
+%.o: %.s
+	@echo "Assembling $<..."
+	$(AS) $(ASFLAGS) -o $@ $<
+
+# C compilation rules
+%.o: %.c
+	@echo "Compiling $<..."
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# Run tests
+test: $(TEST_BINARY)
+	@echo ""
+	@echo "Running threading system tests..."
+	@echo "================================="
+	./$(TEST_BINARY)
+
+# Run demo
+demo: $(DEMO_BINARY)
+	@echo ""
+	@echo "Running threading system demo..."
+	@echo "================================="
+	./$(DEMO_BINARY)
+
+# Run both tests and demo
+check: test demo
+	@echo ""
+	@echo "All threading system checks completed."
+
+# Performance benchmarks
+benchmark: $(DEMO_BINARY)
+	@echo ""
+	@echo "Running threading performance benchmarks..."
+	@echo "==========================================="
+	./$(DEMO_BINARY) --benchmark-only
+
+# Memory testing with valgrind (if available)
+memcheck: $(DEMO_BINARY)
+	@if command -v valgrind >/dev/null 2>&1; then \
+		echo "Running memory check with valgrind..."; \
+		valgrind --tool=memcheck --leak-check=full ./$(DEMO_BINARY); \
+	else \
+		echo "Valgrind not available - running normal demo"; \
+		./$(DEMO_BINARY); \
+	fi
+
+# Static analysis
+analyze:
+	@echo "Running static analysis..."
+	@if command -v cppcheck >/dev/null 2>&1; then \
+		cppcheck --enable=all --std=c99 $(C_SOURCES); \
+	else \
+		echo "cppcheck not available - skipping static analysis"; \
+	fi
+
+# Documentation generation
+docs:
+	@echo "Generating documentation..."
+	@echo "Threading System Components:" > THREADING_DOCS.md
+	@echo "===========================" >> THREADING_DOCS.md
+	@echo "" >> THREADING_DOCS.md
+	@echo "## Files:" >> THREADING_DOCS.md
+	@echo "- threads.s: Core threading implementation" >> THREADING_DOCS.md
+	@echo "- thread_tests.s: Unit test suite" >> THREADING_DOCS.md
+	@echo "- threading_demo.c: Integration demo" >> THREADING_DOCS.md
+	@echo "" >> THREADING_DOCS.md
+	@echo "## Public API:" >> THREADING_DOCS.md
+	@grep "^\.global" *.s | sed 's/^.*\.global \(.*\)/- \1/' >> THREADING_DOCS.md
+	@echo "" >> THREADING_DOCS.md
+	@echo "## Build Targets:" >> THREADING_DOCS.md
+	@echo "- make all: Build everything" >> THREADING_DOCS.md
+	@echo "- make test: Run unit tests" >> THREADING_DOCS.md
+	@echo "- make demo: Run integration demo" >> THREADING_DOCS.md
+	@echo "- make check: Run all tests" >> THREADING_DOCS.md
+	@echo "- make benchmark: Performance tests" >> THREADING_DOCS.md
+	@echo "" >> THREADING_DOCS.md
+	@echo "✓ Documentation generated: THREADING_DOCS.md"
+
+# Code formatting (for C files)
+format:
+	@if command -v clang-format >/dev/null 2>&1; then \
+		echo "Formatting C source files..."; \
+		clang-format -i $(C_SOURCES); \
+		echo "✓ Code formatted"; \
+	else \
+		echo "clang-format not available - skipping formatting"; \
+	fi
+
+# Assembly listing generation
+listing: $(ASM_SOURCES)
+	@echo "Generating assembly listings..."
+	@for file in $(ASM_SOURCES); do \
+		$(AS) $(ASFLAGS) -a=$$file.lst -o /dev/null $$file; \
+		echo "Generated: $$file.lst"; \
+	done
+
+# Size analysis
+size: $(THREADING_LIB) $(DEMO_BINARY)
+	@echo ""
+	@echo "Size analysis:"
+	@echo "=============="
+	@size $(THREADING_LIB) $(DEMO_BINARY)
+	@echo ""
+	@echo "Object file sizes:"
+	@ls -la *.o | awk '{print $$9 ": " $$5 " bytes"}'
+
+# Clean build artifacts
+clean:
+	@echo "Cleaning build artifacts..."
+	rm -f *.o *.a *.lst
+	rm -f $(DEMO_BINARY) $(TEST_BINARY)
+	rm -f THREADING_DOCS.md
+	@echo "✓ Clean completed"
+
+# Install to system (requires proper permissions)
+install: $(THREADING_LIB)
+	@echo "Installing threading library..."
+	@INSTALL_DIR=/usr/local/lib && \
+	if [ -w "$$INSTALL_DIR" ]; then \
+		cp $(THREADING_LIB) $$INSTALL_DIR/; \
+		echo "✓ Library installed to $$INSTALL_DIR"; \
+	else \
+		echo "⚠️  Cannot install to $$INSTALL_DIR (permission denied)"; \
+		echo "Try: sudo make install"; \
+	fi
+
+# Uninstall from system
+uninstall:
+	@echo "Uninstalling threading library..."
+	@INSTALL_DIR=/usr/local/lib && \
+	if [ -f "$$INSTALL_DIR/$(THREADING_LIB)" ]; then \
+		rm -f "$$INSTALL_DIR/$(THREADING_LIB)"; \
+		echo "✓ Library uninstalled from $$INSTALL_DIR"; \
+	else \
+		echo "Library not found in $$INSTALL_DIR"; \
+	fi
+
+# Development helper targets
+dev-setup:
+	@echo "Setting up development environment..."
+	@echo "Checking required tools..."
+	@command -v $(AS) >/dev/null 2>&1 || (echo "❌ Assembler (as) not found" && exit 1)
+	@command -v $(CC) >/dev/null 2>&1 || (echo "❌ Compiler (clang) not found" && exit 1)
+	@echo "✓ Basic tools available"
+	@echo "✓ Development environment ready"
+
+# Continuous integration target
+ci: dev-setup all test
+	@echo ""
+	@echo "Continuous Integration Complete"
+	@echo "==============================="
+	@echo "✓ Build successful"
+	@echo "✓ Tests passed"
+
+# Quick development cycle
+quick: clean all test
+	@echo "Quick development cycle completed"
+
+# Debug build
+debug: CFLAGS += -DDEBUG -O0
+debug: ASFLAGS += --debug
+debug: all
+	@echo "✓ Debug build completed"
+
+# Release build
+release: CFLAGS += -DNDEBUG -O3
+release: clean all
+	@echo "✓ Release build completed"
+
+# Help target
+help:
+	@echo "SimCity ARM64 Threading System Build Targets"
+	@echo "============================================="
+	@echo ""
+	@echo "Build targets:"
+	@echo "  all          - Build library, demo, and tests"
+	@echo "  demo         - Build and run demo program"
+	@echo "  test         - Build and run unit tests"
+	@echo "  check        - Run all tests and demos"
+	@echo "  benchmark    - Run performance benchmarks"
+	@echo ""
+	@echo "Development targets:"
+	@echo "  debug        - Build with debug symbols"
+	@echo "  release      - Build optimized release"
+	@echo "  quick        - Quick clean + build + test"
+	@echo "  dev-setup    - Check development environment"
+	@echo "  ci           - Continuous integration build"
+	@echo ""
+	@echo "Analysis targets:"
+	@echo "  analyze      - Run static analysis"
+	@echo "  memcheck     - Run memory leak detection"
+	@echo "  size         - Show binary sizes"
+	@echo "  listing      - Generate assembly listings"
+	@echo ""
+	@echo "Maintenance targets:"
+	@echo "  format       - Format source code"
+	@echo "  docs         - Generate documentation"
+	@echo "  clean        - Remove build artifacts"
+	@echo "  install      - Install library system-wide"
+	@echo "  uninstall    - Remove installed library"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make quick           # Quick development cycle"
+	@echo "  make check           # Full test suite"
+	@echo "  make release install # Build and install release"
+
+# Phony targets
+.PHONY: all test demo check benchmark memcheck analyze docs format \
+        listing size clean install uninstall dev-setup ci quick debug \
+        release help
+
+# Dependencies (simplified - in a real project would use proper dependency tracking)
+threads.o: threads.s ../../include/macros/platform_asm.inc ../../include/constants/platform_constants.h
+thread_tests.o: thread_tests.s ../../include/macros/platform_asm.inc ../../include/constants/platform_constants.h
+threading_demo.o: threading_demo.c

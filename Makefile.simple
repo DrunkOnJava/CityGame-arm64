@@ -1,0 +1,113 @@
+# SimCity ARM64 Simplified Build System
+CC = clang
+AS = as
+CFLAGS = -arch arm64 -O2 -g -Wall -I./include -I./src
+ASFLAGS = -arch arm64 -g
+LDFLAGS = -arch arm64 -framework Foundation -framework Metal -framework MetalKit
+
+# Core sources that exist or we'll use stubs for
+SOURCES = \
+	src/main_minimal.s \
+	src/core/event_bus.s \
+	src/memory/memory_integration.s \
+	src/memory/tlsf_allocator.s \
+	src/memory/agent_allocator.s \
+	src/memory/tls_allocator.s \
+	src/graphics/metal_encoder.s \
+	src/graphics/sprite_batch.s \
+	src/graphics/camera.s \
+	src/graphics/depth_sorter.s \
+	src/graphics/particles.s \
+	src/simulation/entity_system.s \
+	src/simulation/core.s \
+	src/ai/astar_core.s \
+	src/ai/citizen_behavior.s \
+	src/ai/traffic_flow.s \
+	src/ai/emergency_services.s \
+	src/ai/mass_transit.s \
+	src/persistence/save_load.s \
+	src/platform/bootstrap_stub.s \
+	src/platform/syscalls_stub.s \
+	src/platform/threads_stub.s \
+	src/platform/objc_bridge_stub.s
+
+# C stub implementations
+C_SOURCES = \
+	src/platform/platform_stubs.c \
+	src/memory/memory_stubs.c \
+	src/graphics/graphics_stubs.c \
+	src/simulation/simulation_stubs.c \
+	src/ai/ai_stubs.c \
+	src/audio/audio_stubs.c \
+	src/ui/ui_stubs.c \
+	src/persistence/persistence_stubs.c \
+	src/main_demo.c
+
+TARGET = simcity_arm64
+BUILD_DIR = build
+
+# Object files
+ASM_OBJECTS = $(SOURCES:%.s=$(BUILD_DIR)/%.o)
+C_OBJECTS = $(C_SOURCES:%.c=$(BUILD_DIR)/%.o)
+ALL_OBJECTS = $(ASM_OBJECTS) $(C_OBJECTS)
+
+.PHONY: all clean run debug check stubs
+
+all: $(TARGET)
+
+# Create build directories
+$(BUILD_DIR):
+	@mkdir -p $(BUILD_DIR)/src/{platform,memory,core,graphics,simulation,ai,audio,ui,persistence}
+
+# Compile assembly files
+$(BUILD_DIR)/%.o: %.s | $(BUILD_DIR)
+	@echo "Assembling $<"
+	@$(AS) $(ASFLAGS) -o $@ $<
+
+# Compile C files  
+$(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
+	@echo "Compiling $<"
+	@$(CC) $(CFLAGS) -c -o $@ $<
+
+# Link executable
+$(TARGET): $(ALL_OBJECTS)
+	@echo "Linking $(TARGET)"
+	@$(CC) $(LDFLAGS) -o $@ $^
+	@echo "Build complete!"
+
+# Create stubs if needed
+stubs:
+	@./create_stubs.sh
+
+# Check for missing files
+check:
+	@echo "Checking for required files..."
+	@for file in $(SOURCES) $(C_SOURCES); do \
+		if [ ! -f "$$file" ]; then \
+			echo "Missing: $$file (will use stub)"; \
+		fi; \
+	done
+
+# Run the executable
+run: $(TARGET)
+	@echo "Running SimCity ARM64..."
+	@./$(TARGET)
+
+# Debug build
+debug: CFLAGS += -DDEBUG -O0
+debug: $(TARGET)
+
+# Clean
+clean:
+	@rm -rf $(BUILD_DIR) $(TARGET)
+	@echo "Cleaned build artifacts"
+
+# Help
+help:
+	@echo "SimCity ARM64 Build System"
+	@echo "  all    - Build engine (default)"
+	@echo "  stubs  - Create stub implementations" 
+	@echo "  check  - Check for missing files"
+	@echo "  run    - Build and run"
+	@echo "  debug  - Build debug version"
+	@echo "  clean  - Clean build"

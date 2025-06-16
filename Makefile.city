@@ -1,0 +1,51 @@
+# SimCity ARM64 City Demo Build
+CC = clang
+OBJCFLAGS = -arch arm64 -O2 -g -Wall -fobjc-arc
+LDFLAGS = -arch arm64 -framework Foundation -framework Metal -framework MetalKit -framework Cocoa
+
+# Sources
+MAIN_SOURCE = src/main_city_demo.m
+C_SOURCES = src/platform/platform_stubs.c src/graphics/graphics_stubs.c src/simulation/simulation_stubs.c src/ai/ai_stubs.c src/audio/audio_stubs.c src/ui/ui_stubs.c
+
+TARGET = simcity_city_demo
+BUILD_DIR = build
+
+MAIN_OBJECT = $(BUILD_DIR)/main_city_demo.o
+C_OBJECTS = $(C_SOURCES:%.c=$(BUILD_DIR)/%.o)
+ALL_OBJECTS = $(MAIN_OBJECT) $(C_OBJECTS)
+
+all: $(TARGET)
+
+$(BUILD_DIR):
+	@mkdir -p $(BUILD_DIR)/src/{platform,graphics,simulation,ai,audio,ui}
+
+$(BUILD_DIR)/main_city_demo.o: src/main_city_demo.m | $(BUILD_DIR)
+	@echo "Compiling city simulation demo..."
+	@$(CC) $(OBJCFLAGS) -c -o $@ $<
+
+$(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
+	@echo "Compiling $<"
+	@$(CC) $(OBJCFLAGS) -c -o $@ $<
+
+$(TARGET): $(ALL_OBJECTS)
+	@echo "Linking $(TARGET)"
+	@$(CC) $(LDFLAGS) -o $@ $^
+	@echo ""
+	@echo "🏙️ SimCity ARM64 City Demo Ready!"
+	@echo "Run with: ./$(TARGET)"
+	@echo ""
+	@echo "Features:"
+	@echo "  🏘️ Procedural city generation"
+	@echo "  🌃 Day/night cycle"
+	@echo "  📈 Real-time growth simulation"
+	@echo "  🛣️ District-based road network"
+	@echo "  🎮 Smooth camera movement"
+
+run: $(TARGET)
+	@echo "🚀 Launching SimCity ARM64 City Demo..."
+	@./$(TARGET)
+
+clean:
+	@rm -rf $(BUILD_DIR) $(TARGET)
+
+.PHONY: all run clean
