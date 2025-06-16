@@ -162,6 +162,43 @@ Makefile.enhanced
 Makefile.simple*
 Makefile.stubs
 Makefile.window
+*/Makefile.*
+
+# Build artifacts and compiled files
+*.o
+*.a
+*.so
+*.dylib
+*.dSYM/
+build_unified/
+debug/
+bin/
+obj/
+
+# Test and demo files
+*_test*
+*_demo*
+*_Demo*
+test_*
+demo_*
+
+# Development directories
+integration_plans/
+mocks/
+assets/
+runtime/
+modules/
+watcher/
+
+# Python scripts and tooling
+*.py
+*.pyc
+
+# Internal documentation
+*README*.md
+!README.md
+!./README.md
+IMPLEMENTATION_SUMMARY*
 
 # Other
 .tags
